@@ -775,10 +775,10 @@ if __name__ == "__main__":
     print("  AdsPower Rebotou Automation Dashboard")
     print("=" * 60)
     print()
-    print("  Open in your browser: http://localhost:8080")
+    print("  Open in your browser: http://localhost:9090")
     print()
     print("  Make sure AdsPower is running before using this tool.")
     print("=" * 60)
     print()
     
-    app.run(host="0.0.0.0", port=8080, debug=False)
+    app.run(host="0.0.0.0", port=9090, debug=False)
