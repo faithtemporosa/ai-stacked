@@ -5,13 +5,12 @@ AdsPower Rebotou Automation Dashboard
 A local dashboard to automate Rebotou across all your AdsPower browsers.
 
 SETUP (one-time):
-    pip install requests playwright flask
-    playwright install chromium
-
+    pip install requests flask pyautogui
+    
 RUN:
     python adspower_dashboard.py
 
-Then open http://localhost:8080 in your browser.
+Then open http://localhost:9090 in your browser.
 """
 
 import requests
@@ -20,9 +19,18 @@ import json
 import csv
 import io
 import threading
+import subprocess
 from datetime import datetime
 from flask import Flask, render_template_string, jsonify, request
-from playwright.sync_api import sync_playwright
+
+# Try to import pyautogui for clicking
+try:
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    HAS_PYAUTOGUI = True
+except ImportError:
+    HAS_PYAUTOGUI = False
+    print("WARNING: pyautogui not installed. Run: pip install pyautogui")
 
 # =============================================================================
 # CONFIGURATION - Edit these values
