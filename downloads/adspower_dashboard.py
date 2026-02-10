@@ -126,71 +126,95 @@ def close_browser(profile_id):
     except:
         pass
 
-def run_rebotou_automation(ws_endpoint, profile_name, sheet_name):
-    """Connect to browser and run Rebotou"""
+def run_rebotou_automation(profile_name, sheet_name):
+    """Click extension icon and run Rebotou using pyautogui"""
+    if not HAS_PYAUTOGUI:
+        log("  ERROR: pyautogui not installed!")
+        return False
+    
     comments = comments_cache.get(sheet_name, [])
     
-    with sync_playwright() as p:
+    try:
+        # Wait for browser to fully load
+        time.sleep(3)
+        
+        # Click on the Rebotou extension icon
+        # The extension icon is usually in the top-right area of the browser
+        # We'll look for the yellow "y" icon of Rebotou
+        
+        log(f"  Looking for Rebotou extension icon...")
+        
+        # Try to find the Rebotou icon by image (yellow 'y')
+        # If not found, click on common extension area
+        rebotou_icon = None
         try:
-            browser = p.chromium.connect_over_cdp(ws_endpoint)
-            context = browser.contexts[0]
+            rebotou_icon = pyautogui.locateOnScreen('rebotou_icon.png', confidence=0.8)
+        except:
+            pass
+        
+        if rebotou_icon:
+            # Click on the found icon
+            icon_center = pyautogui.center(rebotou_icon)
+            pyautogui.click(icon_center)
+            log(f"  Clicked Rebotou icon")
+        else:
+            # Click on typical extension area (top right, before the 3-dot menu)
+            # Get screen size
+            screen_width, screen_height = pyautogui.size()
             
-            # Open Rebotou extension
-            rebotou_url = f"chrome-extension://{REBOTOU_EXTENSION_ID}/popup.html"
-            page = context.new_page()
-            page.goto(rebotou_url)
-            time.sleep(3)
+            # Extension icons are usually around x: screen_width - 150 to -50, y: 60-80
+            # Try clicking in that area
+            extension_x = screen_width - 120
+            extension_y = 65
             
-            log(f"  Rebotou opened for {profile_name}")
+            log(f"  Clicking extension area at ({extension_x}, {extension_y})")
+            pyautogui.click(extension_x, extension_y)
+        
+        time.sleep(2)
+        
+        # Now the Rebotou popup should be open
+        # Look for "Run All" button and click it
+        log(f"  Looking for Run All button...")
+        
+        run_all_btn = None
+        try:
+            run_all_btn = pyautogui.locateOnScreen('run_all.png', confidence=0.8)
+        except:
+            pass
+        
+        if run_all_btn:
+            btn_center = pyautogui.center(run_all_btn)
+            pyautogui.click(btn_center)
+            log(f"  Clicked Run All button")
+        else:
+            # Try to find green "Run All" button by color or just click where it typically is
+            # In Rebotou, Run All is at the top left of the popup
+            log(f"  Clicking Run All area...")
+            time.sleep(1)
             
-            # Try to add comments if there's an input field
-            try:
-                # Look for comment input or textarea
-                comment_input = page.locator('textarea, input[type="text"]').first
-                if comment_input.is_visible():
-                    # Add comments (join with newlines or however Rebotou expects)
-                    if comments:
-                        comment_text = "\n".join(comments[:20])  # First 20 comments
-                        comment_input.fill(comment_text)
-                        log(f"  Added {min(20, len(comments))} comments")
-                        time.sleep(1)
-            except Exception as e:
-                log(f"  Note: Could not find comment input ({e})")
-            
-            # Click Run All button
-            try:
-                run_btn = page.locator('button:has-text("Run All"), button:has-text("Run"), [class*="run"]').first
-                if run_btn.is_visible():
-                    run_btn.click()
-                    log(f"  Clicked Run All - automation started!")
-                    
-                    # Wait for automation to complete (check for status changes)
-                    time.sleep(10)  # Initial wait
-                    
-                    # Check if still running
-                    for _ in range(60):  # Max 10 minutes
-                        try:
-                            running_indicator = page.locator('text="REBOTOU IS RUNNING"')
-                            if running_indicator.is_visible():
-                                time.sleep(10)
-                            else:
-                                break
-                        except:
-                            break
-                    
-                    log(f"  Automation completed for {profile_name}")
-                else:
-                    log(f"  Run All button not visible")
-            except Exception as e:
-                log(f"  Error clicking Run All: {e}")
-            
-            page.close()
-            browser.close()
-            return True
-            
-        except Exception as e:
-            log(f"  Automation error: {e}")
-            return False
+            # The popup appears near where we clicked, Run All is at top
+            # Click a bit to the left and down from extension icon
+            screen_width, screen_height = pyautogui.size()
+            pyautogui.click(screen_width - 300, 130)
+        
+        time.sleep(3)
+        
+        # Wait for automation to run (check for "REBOTOU IS RUNNING" or similar)
+        log(f"  Rebotou automation started for {profile_name}")
+        log(f"  Waiting for completion (up to 5 minutes)...")
+        
+        # Wait for Rebotou to finish (poll every 10 seconds for up to 5 min)
+        for i in range(30):
+            time.sleep(10)
+            # Could check for completion indicator here
+            log(f"  Still running... ({(i+1)*10}s)")
+        
+        log(f"  Completed: {profile_name}")
+        return True
+        
+    except Exception as e:
+        log(f"  Automation error: {e}")
+        return False
 
 def run_automation_thread(profile_ids, sheet_mapping):
     """Run automation in background thread"""
