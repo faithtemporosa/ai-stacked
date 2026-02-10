@@ -82,7 +82,7 @@ function App() {
                 <h4 className="font-medium mb-2">Install Requirements</h4>
                 <p className="text-zinc-400 text-sm mb-3">Open terminal and run:</p>
                 <code className="block bg-black/50 rounded-lg p-4 text-sm font-mono text-emerald-400">
-                  pip install requests playwright flask && playwright install chromium
+                  pip install flask requests pyautogui
                 </code>
               </div>
             </div>
