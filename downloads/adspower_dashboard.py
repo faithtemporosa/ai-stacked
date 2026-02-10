@@ -2,15 +2,15 @@
 """
 AdsPower Rebotou Automation Dashboard
 =====================================
-Run Rebotou across all your AdsPower browsers with one click.
+Automates adding comments and running Rebotou across all AdsPower browsers.
 
 SETUP:
-    pip install requests flask pyautogui
+    pip install requests flask pyautogui pyperclip
 
 RUN:
     python adspower_dashboard.py
 
-Then open http://localhost:9090 in your browser.
+Open http://localhost:9090 in your browser.
 """
 
 import requests
@@ -25,11 +25,18 @@ from flask import Flask, render_template_string, jsonify, request
 try:
     import pyautogui
     pyautogui.FAILSAFE = False
-    pyautogui.PAUSE = 0.5
+    pyautogui.PAUSE = 0.3
     HAS_PYAUTOGUI = True
 except ImportError:
     HAS_PYAUTOGUI = False
-    print("ERROR: pyautogui not installed. Run: pip install pyautogui")
+    print("ERROR: Install pyautogui: pip install pyautogui")
+
+try:
+    import pyperclip
+    HAS_PYPERCLIP = True
+except ImportError:
+    HAS_PYPERCLIP = False
+    print("WARNING: Install pyperclip for clipboard: pip install pyperclip")
 
 # =============================================================================
 # CONFIGURATION
@@ -38,25 +45,29 @@ ADSPOWER_API = "http://localhost:50325"
 GOOGLE_SHEET_ID = "1cgjxB09nXSsKMEFwNxQlDzl8xVDyQgT0o8aKm6YOJ-o"
 SHEET_NAMES = ["Bump Connect", "Bump Syndicate", "Kollabsy"]
 
-# Click positions (will be calibrated)
-# For MacBook Air M2 13", extension icon is usually around:
-EXTENSION_ICON_X = 1350  # Near right side
-EXTENSION_ICON_Y = 45    # Top toolbar
-RUN_ALL_BUTTON_X = 85    # In Rebotou popup
-RUN_ALL_BUTTON_Y = 100   # In Rebotou popup
-
 # =============================================================================
 # GLOBAL STATE
 # =============================================================================
 app = Flask(__name__)
 profiles = []
 comments_cache = {}
+
+# Click positions - calibrate these for your screen
 click_positions = {
-    "extension_x": EXTENSION_ICON_X,
-    "extension_y": EXTENSION_ICON_Y,
-    "run_all_x": RUN_ALL_BUTTON_X,
-    "run_all_y": RUN_ALL_BUTTON_Y
+    "extension_x": 1350,      # Rebotou extension icon X
+    "extension_y": 45,        # Rebotou extension icon Y
+    "task_x": 400,            # Task row X (click to edit)
+    "task_y": 330,            # Task row Y
+    "comment_box_x": 550,     # Kommentarinhalt textarea X
+    "comment_box_y": 580,     # Kommentarinhalt textarea Y
+    "save_btn_x": 550,        # Speichern button X
+    "save_btn_y": 850,        # Speichern button Y
+    "close_x": 1060,          # X close button
+    "close_y": 180,           # X close button Y
+    "run_all_x": 115,         # Run All button X
+    "run_all_y": 115,         # Run All button Y
 }
+
 automation_status = {
     "running": False,
     "current_profile": None,
@@ -71,8 +82,8 @@ def log(message):
     log_entry = f"[{timestamp}] {message}"
     automation_status["logs"].append(log_entry)
     print(log_entry)
-    if len(automation_status["logs"]) > 100:
-        automation_status["logs"] = automation_status["logs"][-100:]
+    if len(automation_status["logs"]) > 150:
+        automation_status["logs"] = automation_status["logs"][-150:]
 
 def fetch_adspower_profiles():
     global profiles
@@ -81,14 +92,13 @@ def fetch_adspower_profiles():
         data = response.json()
         if data.get("code") == 0:
             profiles = data.get("data", {}).get("list", [])
-            log(f"Fetched {len(profiles)} profiles from AdsPower")
+            log(f"✓ Loaded {len(profiles)} profiles from AdsPower")
             return True
-        else:
-            log(f"AdsPower API error: {data.get('msg')}")
+        log(f"✗ AdsPower error: {data.get('msg')}")
     except requests.exceptions.ConnectionError:
-        log("ERROR: Cannot connect to AdsPower. Make sure it's running!")
+        log("✗ Cannot connect to AdsPower - is it running?")
     except Exception as e:
-        log(f"ERROR: {e}")
+        log(f"✗ Error: {e}")
     return False
 
 def fetch_google_sheet_comments(sheet_name):
@@ -99,13 +109,13 @@ def fetch_google_sheet_comments(sheet_name):
         response = requests.get(url, timeout=10)
         if response.status_code == 200:
             reader = csv.reader(io.StringIO(response.text))
-            next(reader, None)
+            next(reader, None)  # Skip header
             comments = [row[0].strip() for row in reader if row and row[0].strip()]
             comments_cache[sheet_name] = comments
-            log(f"Loaded {len(comments)} comments from '{sheet_name}'")
+            log(f"✓ Loaded {len(comments)} comments from '{sheet_name}'")
             return comments
     except Exception as e:
-        log(f"ERROR loading comments: {e}")
+        log(f"✗ Error loading comments: {e}")
     return []
 
 def open_browser(profile_id):
@@ -114,9 +124,9 @@ def open_browser(profile_id):
         data = response.json()
         if data.get("code") == 0:
             return True
-        log(f"  Error: {data.get('msg')}")
+        log(f"  ✗ Error: {data.get('msg')}")
     except Exception as e:
-        log(f"  Error opening browser: {e}")
+        log(f"  ✗ Error opening browser: {e}")
     return False
 
 def close_browser(profile_id):
@@ -125,51 +135,97 @@ def close_browser(profile_id):
     except:
         pass
 
-def run_rebotou_automation(profile_name):
-    """Click Rebotou extension and Run All button"""
+def click(x, y, description=""):
+    """Click at position with logging"""
+    if description:
+        log(f"  → Clicking {description} at ({x}, {y})")
+    pyautogui.click(x, y)
+    time.sleep(0.5)
+
+def paste_text(text):
+    """Paste text using clipboard"""
+    if HAS_PYPERCLIP:
+        pyperclip.copy(text)
+        # Cmd+V on Mac, Ctrl+V on Windows/Linux
+        pyautogui.hotkey('command', 'v')
+    else:
+        # Fallback: type it (slower)
+        pyautogui.typewrite(text, interval=0.02)
+
+def run_rebotou_automation(profile_name, sheet_name):
+    """Full automation: add comments and run Rebotou"""
     if not HAS_PYAUTOGUI:
-        log("  ERROR: pyautogui not installed!")
+        log("  ✗ pyautogui not installed!")
         return False
+    
+    comments = comments_cache.get(sheet_name, [])
     
     try:
         # Wait for browser to fully load
-        time.sleep(4)
+        log(f"  Waiting for browser to load...")
+        time.sleep(5)
         
-        # Step 1: Click on the Rebotou extension icon
-        ext_x = click_positions["extension_x"]
-        ext_y = click_positions["extension_y"]
-        
-        log(f"  Clicking Rebotou extension at ({ext_x}, {ext_y})...")
-        pyautogui.click(ext_x, ext_y)
+        # Step 1: Click extension icon
+        click(click_positions["extension_x"], click_positions["extension_y"], "extension icon")
         time.sleep(2)
         
-        # Step 2: Click the Run All button in the popup
-        run_x = click_positions["run_all_x"]
-        run_y = click_positions["run_all_y"]
+        # Step 2: Click on the task row to edit
+        click(click_positions["task_x"], click_positions["task_y"], "task row")
+        time.sleep(1.5)
         
-        log(f"  Clicking Run All at ({run_x}, {run_y})...")
-        pyautogui.click(run_x, run_y)
+        # Step 3: Click on comment textarea
+        click(click_positions["comment_box_x"], click_positions["comment_box_y"], "comment textarea")
+        time.sleep(0.5)
+        
+        # Step 4: Select all existing text (Cmd+A) and delete
+        log(f"  → Clearing existing comments...")
+        pyautogui.hotkey('command', 'a')
+        time.sleep(0.2)
+        pyautogui.press('backspace')
+        time.sleep(0.3)
+        
+        # Step 5: Paste new comments from Google Sheets
+        if comments:
+            # Format comments for Rebotou spin syntax: {comment1|comment2|comment3}
+            # This makes Rebotou pick a random comment each time
+            comments_text = "{" + "|".join(comments[:50]) + "}"  # First 50 comments
+            log(f"  → Pasting {min(50, len(comments))} comments...")
+            paste_text(comments_text)
+            time.sleep(0.5)
+        else:
+            log(f"  ⚠ No comments found for {sheet_name}")
+        
+        # Step 6: Click Save button (Speichern)
+        click(click_positions["save_btn_x"], click_positions["save_btn_y"], "Save button")
+        time.sleep(1)
+        
+        # Step 7: Click X to close dialog (or it auto-closes)
+        # click(click_positions["close_x"], click_positions["close_y"], "close dialog")
+        # time.sleep(0.5)
+        
+        # Step 8: Click Run All button
+        click(click_positions["run_all_x"], click_positions["run_all_y"], "Run All")
         time.sleep(2)
         
-        log(f"  Rebotou started for {profile_name}!")
+        log(f"  ✓ Rebotou started for {profile_name}!")
         
-        # Step 3: Wait for Rebotou to finish
-        # Rebotou typically runs for a few minutes
-        wait_time = 180  # 3 minutes default
-        log(f"  Waiting {wait_time}s for Rebotou to complete...")
+        # Step 9: Wait for Rebotou to finish
+        wait_time = 180  # 3 minutes
+        log(f"  ⏳ Waiting {wait_time}s for completion...")
         
-        for i in range(wait_time // 10):
+        for i in range(wait_time // 15):
             if not automation_status["running"]:
-                log("  Stopped by user")
+                log("  ⏹ Stopped by user")
                 return False
-            time.sleep(10)
-            log(f"  Running... ({(i+1)*10}s / {wait_time}s)")
+            time.sleep(15)
+            elapsed = (i + 1) * 15
+            log(f"  ⏳ Running... ({elapsed}s / {wait_time}s)")
         
-        log(f"  Completed: {profile_name}")
+        log(f"  ✓ Completed: {profile_name}")
         return True
         
     except Exception as e:
-        log(f"  Error: {e}")
+        log(f"  ✗ Error: {e}")
         return False
 
 def run_automation_thread(profile_ids, sheet_mapping):
@@ -181,13 +237,18 @@ def run_automation_thread(profile_ids, sheet_mapping):
     automation_status["completed"] = []
     automation_status["logs"] = []
     
+    log(f"{'='*50}")
     log(f"Starting automation for {len(profile_ids)} profiles")
-    log(f"Extension icon position: ({click_positions['extension_x']}, {click_positions['extension_y']})")
-    log(f"Run All button position: ({click_positions['run_all_x']}, {click_positions['run_all_y']})")
+    log(f"{'='*50}")
+    
+    # Pre-load all comments
+    for sheet in set(sheet_mapping.values()):
+        if sheet not in comments_cache:
+            fetch_google_sheet_comments(sheet)
     
     for i, profile_id in enumerate(profile_ids):
         if not automation_status["running"]:
-            log("Stopped by user")
+            log("⏹ Stopped by user")
             break
         
         profile = next((p for p in profiles if p.get("user_id") == profile_id), None)
@@ -203,24 +264,21 @@ def run_automation_thread(profile_ids, sheet_mapping):
         log(f"\n[{i+1}/{len(profile_ids)}] {profile_name}")
         log(f"  Sheet: {sheet_name}")
         
-        # Load comments for this sheet
-        if sheet_name not in comments_cache:
-            fetch_google_sheet_comments(sheet_name)
-        
         # Open browser
         log(f"  Opening browser...")
         if not open_browser(profile_id):
-            log(f"  Failed to open browser")
+            log(f"  ✗ Failed to open browser, skipping...")
             continue
         
-        log(f"  Browser opened!")
+        log(f"  ✓ Browser opened")
         
-        # Run Rebotou
-        success = run_rebotou_automation(profile_name)
+        # Run automation
+        success = run_rebotou_automation(profile_name, sheet_name)
         
         # Close browser
         log(f"  Closing browser...")
         close_browser(profile_id)
+        log(f"  ✓ Browser closed")
         
         if success:
             automation_status["completed"].append(profile_id)
@@ -233,10 +291,11 @@ def run_automation_thread(profile_ids, sheet_mapping):
     automation_status["running"] = False
     automation_status["current_profile"] = None
     log(f"\n{'='*50}")
-    log(f"Done! {len(automation_status['completed'])}/{len(profile_ids)} completed")
+    log(f"✓ DONE! {len(automation_status['completed'])}/{len(profile_ids)} completed")
+    log(f"{'='*50}")
 
 # =============================================================================
-# WEB DASHBOARD HTML
+# WEB DASHBOARD
 # =============================================================================
 DASHBOARD_HTML = """
 <!DOCTYPE html>
@@ -246,58 +305,62 @@ DASHBOARD_HTML = """
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, system-ui, sans-serif; background: #0a0a0b; color: #e4e4e7; }
-        .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
         h1 { font-size: 22px; margin-bottom: 4px; }
         .subtitle { color: #71717a; font-size: 14px; margin-bottom: 24px; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
         .card { background: #18181b; border: 1px solid #27272a; border-radius: 10px; padding: 16px; }
-        .card-title { font-weight: 600; margin-bottom: 12px; display: flex; justify-content: space-between; }
-        .btn { padding: 8px 16px; border-radius: 6px; border: none; font-size: 13px; cursor: pointer; }
-        .btn-sm { padding: 6px 12px; font-size: 12px; }
+        .card-title { font-weight: 600; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .btn { padding: 8px 16px; border-radius: 6px; border: none; font-size: 13px; cursor: pointer; transition: all 0.15s; }
+        .btn:hover { opacity: 0.9; }
+        .btn-sm { padding: 5px 10px; font-size: 11px; }
         .btn-secondary { background: #27272a; color: #e4e4e7; }
-        .btn-secondary:hover { background: #3f3f46; }
-        .btn-success { background: #16a34a; color: white; font-size: 15px; padding: 12px 24px; }
-        .btn-success:hover { background: #15803d; }
+        .btn-success { background: #16a34a; color: white; font-size: 15px; padding: 12px 28px; }
         .btn-danger { background: #dc2626; color: white; }
-        .profile { display: flex; align-items: center; padding: 10px; background: #27272a; border-radius: 6px; margin-bottom: 6px; cursor: pointer; }
+        .btn-primary { background: #7c3aed; color: white; }
+        .profile { display: flex; align-items: center; padding: 10px; background: #27272a; border-radius: 6px; margin-bottom: 6px; cursor: pointer; transition: all 0.15s; }
         .profile:hover { background: #3f3f46; }
         .profile.selected { background: #4c1d95; border: 1px solid #7c3aed; }
-        .profile input { margin-right: 10px; }
+        .profile input[type="checkbox"] { margin-right: 10px; width: 16px; height: 16px; }
         .profile-info { flex: 1; }
         .profile-name { font-weight: 500; font-size: 13px; }
         .profile-id { color: #71717a; font-size: 11px; }
-        .profile-list { max-height: 350px; overflow-y: auto; }
+        .profile-list { max-height: 300px; overflow-y: auto; margin-top: 10px; }
         select { padding: 4px 8px; background: #18181b; border: 1px solid #3f3f46; color: #e4e4e7; border-radius: 4px; font-size: 11px; }
-        .stats { display: flex; gap: 24px; justify-content: center; margin: 16px 0; }
+        .stats { display: flex; gap: 20px; justify-content: center; margin: 16px 0; }
         .stat { text-align: center; }
         .stat-value { font-size: 28px; font-weight: 700; color: #7c3aed; }
-        .stat-label { color: #71717a; font-size: 12px; }
+        .stat-label { color: #71717a; font-size: 11px; }
         .progress { width: 100%; height: 6px; background: #27272a; border-radius: 3px; margin: 12px 0; }
         .progress-fill { height: 100%; background: linear-gradient(90deg, #7c3aed, #a855f7); border-radius: 3px; transition: width 0.3s; }
-        .logs { background: #0f0f10; border-radius: 6px; padding: 12px; height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px; line-height: 1.5; }
-        .log-entry { color: #a1a1aa; }
+        .logs { background: #0f0f10; border-radius: 6px; padding: 12px; height: 250px; overflow-y: auto; font-family: 'SF Mono', Monaco, monospace; font-size: 11px; line-height: 1.6; }
+        .log-entry { color: #a1a1aa; white-space: pre-wrap; }
         .log-entry.error { color: #f87171; }
         .log-entry.success { color: #4ade80; }
-        .actions { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-        .calibration { background: #1e1b4b; border: 1px solid #4c1d95; border-radius: 8px; padding: 12px; margin-bottom: 16px; }
-        .calibration h4 { font-size: 13px; margin-bottom: 8px; color: #a78bfa; }
-        .calibration-row { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
-        .calibration input { width: 70px; padding: 4px 8px; background: #27272a; border: 1px solid #3f3f46; color: white; border-radius: 4px; }
-        .calibration label { font-size: 12px; color: #a1a1aa; min-width: 120px; }
+        .actions { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+        .calibration { background: #1e1b4b; border: 1px solid #4c1d95; border-radius: 8px; padding: 14px; margin-bottom: 14px; }
+        .calibration h4 { font-size: 13px; margin-bottom: 10px; color: #a78bfa; }
+        .cal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .cal-row { display: flex; align-items: center; gap: 6px; }
+        .cal-row label { font-size: 11px; color: #a1a1aa; min-width: 90px; }
+        .cal-row input { width: 55px; padding: 4px 6px; background: #27272a; border: 1px solid #3f3f46; color: white; border-radius: 4px; font-size: 11px; }
         .center { text-align: center; }
-        .mouse-pos { position: fixed; bottom: 10px; right: 10px; background: #27272a; padding: 8px 12px; border-radius: 6px; font-size: 12px; font-family: monospace; }
+        .mouse-pos { position: fixed; bottom: 10px; right: 10px; background: #18181b; border: 1px solid #3f3f46; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-family: monospace; z-index: 999; }
+        .help-text { font-size: 10px; color: #71717a; margin-top: 8px; line-height: 1.4; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>AdsPower Rebotou Automation</h1>
-        <p class="subtitle">One-click automation for all your browser profiles</p>
+        <h1>🤖 AdsPower Rebotou Automation</h1>
+        <p class="subtitle">Add comments from Google Sheets and run Rebotou on all browsers</p>
         
         <div class="grid">
+            <!-- Left: Profiles -->
             <div class="card">
                 <div class="card-title">
                     <span>Browser Profiles</span>
-                    <span id="profile-count" style="color:#71717a; font-weight:normal;">0 profiles</span>
+                    <span id="profile-count" style="color:#71717a; font-weight:normal; font-size:12px;">0 profiles</span>
                 </div>
                 <div class="actions">
                     <button class="btn btn-secondary" onclick="syncProfiles()">🔄 Sync Profiles</button>
@@ -311,29 +374,52 @@ DASHBOARD_HTML = """
                 </div>
             </div>
             
+            <!-- Right: Control -->
             <div class="card">
-                <div class="card-title">Automation Control</div>
+                <div class="card-title">Control Panel</div>
                 
-                <!-- Calibration Section -->
+                <!-- Calibration -->
                 <div class="calibration">
                     <h4>📍 Click Position Calibration</h4>
-                    <p style="font-size:11px; color:#71717a; margin-bottom:10px;">
-                        Move your mouse to find correct positions, then enter them below:
-                    </p>
-                    <div class="calibration-row">
-                        <label>Extension Icon (X, Y):</label>
-                        <input type="number" id="ext-x" value="1350" onchange="updatePositions()">
-                        <input type="number" id="ext-y" value="45" onchange="updatePositions()">
-                        <button class="btn btn-secondary btn-sm" onclick="testExtClick()">Test</button>
+                    <p class="help-text">Move your mouse to find positions. The coordinates show at bottom-right.</p>
+                    <div class="cal-grid">
+                        <div class="cal-row">
+                            <label>Extension icon:</label>
+                            <input type="number" id="pos-extension_x" value="1350">
+                            <input type="number" id="pos-extension_y" value="45">
+                        </div>
+                        <div class="cal-row">
+                            <label>Task row:</label>
+                            <input type="number" id="pos-task_x" value="400">
+                            <input type="number" id="pos-task_y" value="330">
+                        </div>
+                        <div class="cal-row">
+                            <label>Comment box:</label>
+                            <input type="number" id="pos-comment_box_x" value="550">
+                            <input type="number" id="pos-comment_box_y" value="580">
+                        </div>
+                        <div class="cal-row">
+                            <label>Save button:</label>
+                            <input type="number" id="pos-save_btn_x" value="550">
+                            <input type="number" id="pos-save_btn_y" value="850">
+                        </div>
+                        <div class="cal-row">
+                            <label>Run All btn:</label>
+                            <input type="number" id="pos-run_all_x" value="115">
+                            <input type="number" id="pos-run_all_y" value="115">
+                        </div>
                     </div>
-                    <div class="calibration-row">
-                        <label>Run All Button (X, Y):</label>
-                        <input type="number" id="run-x" value="85" onchange="updatePositions()">
-                        <input type="number" id="run-y" value="100" onchange="updatePositions()">
-                        <button class="btn btn-secondary btn-sm" onclick="testRunClick()">Test</button>
+                    <div style="margin-top:10px; display:flex; gap:8px;">
+                        <button class="btn btn-sm btn-primary" onclick="savePositions()">💾 Save Positions</button>
+                        <button class="btn btn-sm btn-secondary" onclick="testClick('extension')">Test Ext</button>
+                        <button class="btn btn-sm btn-secondary" onclick="testClick('task')">Test Task</button>
+                        <button class="btn btn-sm btn-secondary" onclick="testClick('comment')">Test Comment</button>
+                        <button class="btn btn-sm btn-secondary" onclick="testClick('save')">Test Save</button>
+                        <button class="btn btn-sm btn-secondary" onclick="testClick('run')">Test Run</button>
                     </div>
                 </div>
                 
+                <!-- Stats -->
                 <div class="stats">
                     <div class="stat">
                         <div class="stat-value" id="stat-total">0</div>
@@ -350,7 +436,7 @@ DASHBOARD_HTML = """
                 </div>
                 
                 <div class="progress"><div class="progress-fill" id="progress" style="width:0%"></div></div>
-                <p class="center" style="color:#71717a; font-size:12px;" id="status-text">Ready</p>
+                <p class="center" style="color:#71717a; font-size:12px;" id="status-text">Ready to start</p>
                 
                 <div class="center" style="margin-top:16px;">
                     <button class="btn btn-success" id="start-btn" onclick="startAutomation()">▶ Run Selected Profiles</button>
@@ -359,29 +445,30 @@ DASHBOARD_HTML = """
             </div>
         </div>
         
+        <!-- Logs -->
         <div class="card" style="margin-top:20px;">
             <div class="card-title">
-                <span>Activity Log</span>
+                <span>📋 Activity Log</span>
                 <button class="btn btn-secondary btn-sm" onclick="clearLogs()">Clear</button>
             </div>
             <div class="logs" id="logs">Waiting to start...</div>
         </div>
     </div>
     
-    <div class="mouse-pos" id="mouse-pos">Mouse: (0, 0)</div>
+    <div class="mouse-pos">Mouse: <span id="mouse-coords">(0, 0)</span></div>
     
     <script>
         let profiles = [];
         let selected = new Set();
         let sheetMap = {};
         const SHEETS = ['Bump Connect', 'Bump Syndicate', 'Kollabsy'];
+        const POS_KEYS = ['extension_x', 'extension_y', 'task_x', 'task_y', 'comment_box_x', 'comment_box_y', 'save_btn_x', 'save_btn_y', 'run_all_x', 'run_all_y'];
         
         // Track mouse position
         document.addEventListener('mousemove', (e) => {
-            document.getElementById('mouse-pos').textContent = `Mouse: (${e.screenX}, ${e.screenY})`;
+            document.getElementById('mouse-coords').textContent = `(${e.screenX}, ${e.screenY})`;
         });
         
-        // Poll status
         setInterval(updateStatus, 1000);
         
         async function syncProfiles() {
@@ -400,7 +487,8 @@ DASHBOARD_HTML = """
         function renderProfiles() {
             const el = document.getElementById('profile-list');
             if (!profiles.length) {
-                el.innerHTML = '<div style="text-align:center;color:#71717a;padding:40px;">No profiles found</div>';
+                el.innerHTML = '<div style="text-align:center;color:#71717a;padding:40px;">No profiles found. Is AdsPower running?</div>';
+                updateStats();
                 return;
             }
             el.innerHTML = profiles.map(p => `
@@ -411,7 +499,7 @@ DASHBOARD_HTML = """
                         <div class="profile-id">${p.user_id}</div>
                     </div>
                     <select onclick="event.stopPropagation()" onchange="sheetMap['${p.user_id}']=this.value">
-                        ${SHEETS.map(s => `<option ${sheetMap[p.user_id]===s?'selected':''}>${s}</option>`).join('')}
+                        ${SHEETS.map(s => `<option value="${s}" ${sheetMap[p.user_id]===s?'selected':''}>${s}</option>`).join('')}
                     </select>
                 </div>
             `).join('');
@@ -439,32 +527,29 @@ DASHBOARD_HTML = """
             document.getElementById('stat-selected').textContent = selected.size;
         }
         
-        function updatePositions() {
-            fetch('/api/set-positions', {
+        function getPositions() {
+            const pos = {};
+            POS_KEYS.forEach(k => { pos[k] = parseInt(document.getElementById('pos-' + k).value) || 0; });
+            return pos;
+        }
+        
+        async function savePositions() {
+            await fetch('/api/set-positions', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    extension_x: parseInt(document.getElementById('ext-x').value),
-                    extension_y: parseInt(document.getElementById('ext-y').value),
-                    run_all_x: parseInt(document.getElementById('run-x').value),
-                    run_all_y: parseInt(document.getElementById('run-y').value)
-                })
+                body: JSON.stringify(getPositions())
             });
+            alert('Positions saved!');
         }
         
-        async function testExtClick() {
-            updatePositions();
-            await fetch('/api/test-click?type=extension', {method: 'POST'});
-        }
-        
-        async function testRunClick() {
-            updatePositions();
-            await fetch('/api/test-click?type=run_all', {method: 'POST'});
+        async function testClick(type) {
+            await savePositions();
+            await fetch('/api/test-click?type=' + type, {method: 'POST'});
         }
         
         async function startAutomation() {
             if (!selected.size) { alert('Select at least one profile'); return; }
-            updatePositions();
+            await savePositions();
             await fetch('/api/start', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -479,35 +564,42 @@ DASHBOARD_HTML = """
         }
         
         async function updateStatus() {
-            const res = await fetch('/api/status');
-            const data = await res.json();
-            
-            const pct = data.total ? (data.progress / data.total * 100) : 0;
-            document.getElementById('progress').style.width = pct + '%';
-            document.getElementById('stat-done').textContent = data.completed.length;
-            
-            if (data.running) {
-                document.getElementById('status-text').textContent = `Running: ${data.current_profile} (${data.progress}/${data.total})`;
-            } else if (data.progress > 0) {
-                document.getElementById('status-text').textContent = `Completed ${data.completed.length}/${data.total}`;
-                document.getElementById('start-btn').style.display = 'inline';
-                document.getElementById('stop-btn').style.display = 'none';
-            }
-            
-            if (data.logs.length) {
-                document.getElementById('logs').innerHTML = data.logs.map(l => {
-                    let cls = 'log-entry';
-                    if (l.includes('ERROR')) cls += ' error';
-                    if (l.includes('Completed') || l.includes('Done')) cls += ' success';
-                    return `<div class="${cls}">${l}</div>`;
-                }).join('');
-                document.getElementById('logs').scrollTop = 99999;
-            }
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                
+                const pct = data.total ? (data.progress / data.total * 100) : 0;
+                document.getElementById('progress').style.width = pct + '%';
+                document.getElementById('stat-done').textContent = data.completed.length;
+                
+                if (data.running) {
+                    document.getElementById('status-text').textContent = `Running: ${data.current_profile} (${data.progress}/${data.total})`;
+                    document.getElementById('start-btn').style.display = 'none';
+                    document.getElementById('stop-btn').style.display = 'inline';
+                } else {
+                    document.getElementById('start-btn').style.display = 'inline';
+                    document.getElementById('stop-btn').style.display = 'none';
+                    if (data.progress > 0) {
+                        document.getElementById('status-text').textContent = `Done: ${data.completed.length}/${data.total} completed`;
+                    }
+                }
+                
+                if (data.logs.length) {
+                    const logsEl = document.getElementById('logs');
+                    logsEl.innerHTML = data.logs.map(l => {
+                        let cls = 'log-entry';
+                        if (l.includes('✗') || l.includes('Error')) cls += ' error';
+                        if (l.includes('✓') || l.includes('DONE')) cls += ' success';
+                        return `<div class="${cls}">${l}</div>`;
+                    }).join('');
+                    logsEl.scrollTop = logsEl.scrollHeight;
+                }
+            } catch(e) {}
         }
         
         function clearLogs() {
             fetch('/api/clear-logs', {method:'POST'});
-            document.getElementById('logs').innerHTML = 'Cleared';
+            document.getElementById('logs').innerHTML = 'Logs cleared';
         }
     </script>
 </body>
@@ -543,16 +635,29 @@ def api_set_positions():
     global click_positions
     data = request.json
     click_positions.update(data)
+    log(f"Updated click positions")
     return jsonify({"ok": True})
 
 @app.route('/api/test-click', methods=['POST'])
 def api_test_click():
     click_type = request.args.get('type', 'extension')
-    if HAS_PYAUTOGUI:
-        if click_type == 'extension':
-            pyautogui.click(click_positions['extension_x'], click_positions['extension_y'])
-        else:
-            pyautogui.click(click_positions['run_all_x'], click_positions['run_all_y'])
+    if not HAS_PYAUTOGUI:
+        return jsonify({"error": "pyautogui not installed"}), 400
+    
+    pos_map = {
+        'extension': ('extension_x', 'extension_y'),
+        'task': ('task_x', 'task_y'),
+        'comment': ('comment_box_x', 'comment_box_y'),
+        'save': ('save_btn_x', 'save_btn_y'),
+        'run': ('run_all_x', 'run_all_y'),
+    }
+    
+    if click_type in pos_map:
+        x_key, y_key = pos_map[click_type]
+        x, y = click_positions[x_key], click_positions[y_key]
+        log(f"Test click: {click_type} at ({x}, {y})")
+        pyautogui.click(x, y)
+    
     return jsonify({"ok": True})
 
 @app.route('/api/start', methods=['POST'])
@@ -568,6 +673,7 @@ def api_start():
 @app.route('/api/stop', methods=['POST'])
 def api_stop():
     automation_status["running"] = False
+    log("⏹ Stop requested")
     return jsonify({"ok": True})
 
 @app.route('/api/clear-logs', methods=['POST'])
@@ -575,13 +681,20 @@ def api_clear_logs():
     automation_status["logs"] = []
     return jsonify({"ok": True})
 
+# =============================================================================
+# MAIN
+# =============================================================================
 if __name__ == "__main__":
     print("=" * 50)
-    print("  AdsPower Rebotou Automation")
+    print("  AdsPower Rebotou Automation Dashboard")
     print("  Open: http://localhost:9090")
     print("=" * 50)
+    print()
     
     if not HAS_PYAUTOGUI:
-        print("\n⚠️  Install pyautogui: pip install pyautogui\n")
+        print("⚠️  Install: pip install pyautogui")
+    if not HAS_PYPERCLIP:
+        print("⚠️  Install: pip install pyperclip")
+    print()
     
     app.run(host="0.0.0.0", port=9090, debug=False)
