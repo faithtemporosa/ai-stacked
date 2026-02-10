@@ -1,34 +1,87 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+* {
+    box-sizing: border-box;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
+body {
+    font-family: 'JetBrains Mono', -apple-system, BlinkMacSystemFont, monospace;
 }
 
-.App-header {
-    background-color: #0f0f10;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(10px + 2vmin);
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #18181b;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #3f3f46;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #52525b;
+}
+
+/* Selection */
+::selection {
+    background: rgba(139, 92, 246, 0.3);
     color: white;
 }
 
-.App-link {
-    color: #61dafb;
+/* Focus rings */
+*:focus-visible {
+    outline: 2px solid rgba(139, 92, 246, 0.5);
+    outline-offset: 2px;
 }
 
-@keyframes App-logo-spin {
+/* Transitions */
+button, a, input, select {
+    transition: all 0.15s ease;
+}
+
+/* Table hover effects */
+tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+/* Modal backdrop animation */
+.fixed.inset-0 {
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
     from {
-        transform: rotate(0deg);
+        opacity: 0;
     }
     to {
-        transform: rotate(360deg);
+        opacity: 1;
+    }
+}
+
+/* Card hover lift */
+.grid > div {
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.grid > div:hover {
+    transform: translateY(-2px);
+}
+
+/* Checkbox animation */
+input[type="checkbox"]:checked {
+    animation: checkBounce 0.3s ease;
+}
+
+@keyframes checkBounce {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.2);
     }
 }
