@@ -177,6 +177,20 @@ async def update_run_status(run_id: str, status: str, error_message: Optional[st
     await db.automation_runs.update_one({"id": run_id}, {"$set": update_dict})
     return {"status": "updated"}
 
+# Download standalone dashboard
+@api_router.get("/download-dashboard")
+async def download_dashboard():
+    """Download the standalone Python dashboard app"""
+    dashboard_path = Path(__file__).parent.parent / "downloads" / "adspower_dashboard.py"
+    if dashboard_path.exists():
+        content = dashboard_path.read_text()
+        return StreamingResponse(
+            io.BytesIO(content.encode()),
+            media_type="text/x-python",
+            headers={"Content-Disposition": "attachment; filename=adspower_dashboard.py"}
+        )
+    raise HTTPException(status_code=404, detail="Dashboard file not found")
+
 # Script generation endpoint
 @api_router.get("/generate-script")
 async def generate_automation_script():
