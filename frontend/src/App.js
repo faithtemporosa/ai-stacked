@@ -106,7 +106,7 @@ function App() {
                 <h4 className="font-medium mb-2">Open Dashboard & Click Run</h4>
                 <p className="text-zinc-400 text-sm mb-3">Open in your browser:</p>
                 <code className="block bg-black/50 rounded-lg p-4 text-sm font-mono text-amber-400">
-                  http://localhost:8080
+                  http://localhost:9090
                 </code>
                 <p className="text-zinc-400 text-sm mt-3">
                   Click "Sync from AdsPower" → Select profiles → Click "Run Selected Profiles"
