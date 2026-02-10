@@ -256,16 +256,10 @@ def run_automation_thread(profile_ids, sheet_mapping):
             log(f"  Failed to open browser")
             continue
         
-        ws_endpoint = browser_data.get("ws", {}).get("puppeteer")
-        if not ws_endpoint:
-            log(f"  No WebSocket endpoint")
-            close_browser(profile_id)
-            continue
-        
         log(f"  Browser opened")
         
-        # Run automation
-        success = run_rebotou_automation(ws_endpoint, profile_name, sheet_name)
+        # Run automation using pyautogui to click extension
+        success = run_rebotou_automation(profile_name, sheet_name)
         
         # Close browser
         close_browser(profile_id)
