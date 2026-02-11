@@ -614,7 +614,7 @@ DASHBOARD_HTML = """
     </div>
     <script>
         let profiles=[],selected=new Set(),sheetMap={},report=[];
-        const SHEETS=['Bump Connect','Bump Syndicate','Kollabsy'];
+        const SHEETS=['Bump Connect','Kollabsy','Bump Syndicate'];
         setInterval(upd,1000);
         function showTab(t){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));event.target.classList.add('active');document.getElementById('tab-main').style.display=t=='main'?'block':'none';document.getElementById('tab-report').style.display=t=='report'?'block':'none';}
         async function sync(){const r=await fetch('/api/sync-profiles',{method:'POST'});profiles=(await r.json()).profiles||[];render();}
