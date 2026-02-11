@@ -187,46 +187,109 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
                     # Check if we already commented on this video
                     if video_id in commented_videos:
                         log(f"    ⏭ Already commented, skipping...")
-                        # Scroll to next video
                         page.keyboard.press("ArrowDown")
                         time.sleep(2)
                         continue
                     
-                    # Find and click comment button/icon
-                    comment_button = page.locator('[data-e2e="comment-icon"]').first
-                    if comment_button.is_visible():
-                        comment_button.click()
-                        time.sleep(1.5)
+                    # Try multiple ways to find and click comment button
+                    comment_clicked = False
                     
-                    # Find comment input box
-                    comment_input = page.locator('[data-e2e="comment-input"]').first
-                    if not comment_input.is_visible():
-                        # Try alternative selectors
-                        comment_input = page.locator('div[contenteditable="true"]').first
+                    # Method 1: Click comment icon on the side
+                    comment_selectors = [
+                        '[data-e2e="comment-icon"]',
+                        'button[aria-label*="comment" i]',
+                        '[class*="CommentButton"]',
+                        '[class*="comment-icon"]',
+                        'span[data-e2e="comment-icon"]',
+                    ]
                     
-                    if comment_input.is_visible():
+                    for selector in comment_selectors:
+                        try:
+                            btn = page.locator(selector).first
+                            if btn.is_visible(timeout=2000):
+                                btn.click()
+                                comment_clicked = True
+                                log(f"    ✓ Clicked comment button")
+                                time.sleep(2)
+                                break
+                        except:
+                            continue
+                    
+                    if not comment_clicked:
+                        log(f"    ⚠ Could not find comment button, trying to find input directly...")
+                    
+                    # Find comment input box - try multiple selectors
+                    input_selectors = [
+                        '[data-e2e="comment-input"]',
+                        'div[contenteditable="true"][data-e2e="comment-input"]',
+                        'div[contenteditable="true"][class*="comment"]',
+                        'div[contenteditable="true"]',
+                        '[class*="DraftEditor-root"]',
+                        '[class*="CommentInput"]',
+                        'div[data-contents="true"]',
+                    ]
+                    
+                    comment_input = None
+                    for selector in input_selectors:
+                        try:
+                            el = page.locator(selector).first
+                            if el.is_visible(timeout=2000):
+                                comment_input = el
+                                log(f"    ✓ Found comment input")
+                                break
+                        except:
+                            continue
+                    
+                    if comment_input and comment_input.is_visible():
                         # Get random comment
                         comment_text = get_random_comment(sheet_name)
                         if not comment_text:
                             log(f"    ⚠ No comments available")
+                            page.keyboard.press("ArrowDown")
+                            time.sleep(2)
                             continue
                         
                         # Click and type comment
                         comment_input.click()
                         time.sleep(0.5)
                         
-                        # Type comment (character by character for more human-like behavior)
+                        # Clear any existing text
+                        page.keyboard.press("Control+a")
+                        time.sleep(0.1)
+                        
+                        # Type comment
                         page.keyboard.type(comment_text, delay=50)
-                        time.sleep(0.5)
-                        
-                        # Press Enter or click Post button
-                        post_button = page.locator('[data-e2e="comment-post"]').first
-                        if post_button.is_visible():
-                            post_button.click()
-                        else:
-                            page.keyboard.press("Enter")
-                        
                         time.sleep(1)
+                        
+                        # Try to post - multiple methods
+                        posted = False
+                        
+                        # Method 1: Click post button
+                        post_selectors = [
+                            '[data-e2e="comment-post"]',
+                            'button[data-e2e="comment-post"]',
+                            '[class*="PostButton"]',
+                            'button:has-text("Post")',
+                            'div[role="button"]:has-text("Post")',
+                        ]
+                        
+                        for selector in post_selectors:
+                            try:
+                                btn = page.locator(selector).first
+                                if btn.is_visible(timeout=1000):
+                                    btn.click()
+                                    posted = True
+                                    log(f"    ✓ Clicked Post button")
+                                    break
+                            except:
+                                continue
+                        
+                        # Method 2: Press Enter
+                        if not posted:
+                            page.keyboard.press("Enter")
+                            log(f"    → Pressed Enter to post")
+                        
+                        time.sleep(2)
                         
                         # Mark as commented
                         commented_videos.add(video_id)
