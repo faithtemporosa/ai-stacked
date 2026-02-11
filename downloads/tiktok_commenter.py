@@ -191,42 +191,53 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
                         time.sleep(2)
                         continue
                     
-                    # Try multiple ways to find and click comment button
+                    # Step 1: Click the comment icon (speech bubble)
+                    log(f"    → Looking for comment icon...")
                     comment_clicked = False
                     
-                    # Method 1: Click comment icon on the side
+                    # The comment icon is near the like count, has a speech bubble shape
                     comment_selectors = [
                         '[data-e2e="comment-icon"]',
                         'button[aria-label*="comment" i]',
-                        '[class*="CommentButton"]',
-                        '[class*="comment-icon"]',
                         'span[data-e2e="comment-icon"]',
+                        # Try clicking by the number pattern (52, etc)
+                        '//button[contains(@class, "comment")]',
                     ]
                     
-                    for selector in comment_selectors:
-                        try:
-                            btn = page.locator(selector).first
-                            if btn.is_visible(timeout=2000):
-                                btn.click()
-                                comment_clicked = True
-                                log(f"    ✓ Clicked comment button")
-                                time.sleep(2)
-                                break
-                        except:
-                            continue
+                    # Try to find comment button by looking for elements with comment-related attributes
+                    try:
+                        # Look for the comment button near the action buttons
+                        comment_btn = page.locator('button').filter(has=page.locator('svg')).nth(1)  # Usually 2nd button after like
+                        if comment_btn.is_visible(timeout=2000):
+                            comment_btn.click()
+                            comment_clicked = True
+                            log(f"    ✓ Clicked comment icon")
+                    except:
+                        pass
                     
                     if not comment_clicked:
-                        log(f"    ⚠ Could not find comment button, trying to find input directly...")
+                        # Alternative: Try clicking any element that looks like comment section opener
+                        try:
+                            page.click('[class*="comment" i]', timeout=3000)
+                            comment_clicked = True
+                            log(f"    ✓ Clicked comment area")
+                        except:
+                            pass
                     
-                    # Find comment input box - try multiple selectors
+                    time.sleep(2)
+                    
+                    # Step 2: Find the comment input ("Aggiungi commento..." or similar)
+                    log(f"    → Looking for comment input...")
+                    
                     input_selectors = [
                         '[data-e2e="comment-input"]',
-                        'div[contenteditable="true"][data-e2e="comment-input"]',
-                        'div[contenteditable="true"][class*="comment"]',
                         'div[contenteditable="true"]',
-                        '[class*="DraftEditor-root"]',
-                        '[class*="CommentInput"]',
+                        '[placeholder*="comment" i]',
+                        '[placeholder*="commento" i]',
+                        '[placeholder*="Aggiungi" i]',
                         'div[data-contents="true"]',
+                        '[class*="DraftEditor"]',
+                        '[class*="CommentInput"]',
                     ]
                     
                     comment_input = None
@@ -235,10 +246,19 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
                             el = page.locator(selector).first
                             if el.is_visible(timeout=2000):
                                 comment_input = el
-                                log(f"    ✓ Found comment input")
+                                log(f"    ✓ Found input with: {selector}")
                                 break
                         except:
                             continue
+                    
+                    if not comment_input:
+                        # Try finding by placeholder text
+                        try:
+                            comment_input = page.get_by_placeholder("Aggiungi", exact=False).first
+                            if comment_input.is_visible(timeout=2000):
+                                log(f"    ✓ Found input by placeholder")
+                        except:
+                            pass
                     
                     if comment_input and comment_input.is_visible():
                         # Get random comment
@@ -249,45 +269,49 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
                             time.sleep(2)
                             continue
                         
-                        # Click and type comment
+                        # Click the input to focus it
                         comment_input.click()
                         time.sleep(0.5)
                         
-                        # Clear any existing text
-                        page.keyboard.press("Control+a")
-                        time.sleep(0.1)
-                        
-                        # Type comment
-                        page.keyboard.type(comment_text, delay=50)
+                        # Type the comment
+                        log(f"    → Typing comment...")
+                        page.keyboard.type(comment_text, delay=30)
                         time.sleep(1)
                         
-                        # Try to post - multiple methods
+                        # Step 3: Click "Pubblica" button or press Enter
+                        log(f"    → Posting comment...")
                         posted = False
                         
-                        # Method 1: Click post button
+                        # Look for Pubblica/Post button
                         post_selectors = [
-                            '[data-e2e="comment-post"]',
-                            'button[data-e2e="comment-post"]',
-                            '[class*="PostButton"]',
+                            'button:has-text("Pubblica")',
                             'button:has-text("Post")',
-                            'div[role="button"]:has-text("Post")',
+                            '[data-e2e="comment-post"]',
+                            'div:has-text("Pubblica")',
+                            'span:has-text("Pubblica")',
                         ]
                         
                         for selector in post_selectors:
                             try:
                                 btn = page.locator(selector).first
-                                if btn.is_visible(timeout=1000):
+                                if btn.is_visible(timeout=1500):
                                     btn.click()
                                     posted = True
-                                    log(f"    ✓ Clicked Post button")
+                                    log(f"    ✓ Clicked Pubblica")
                                     break
                             except:
                                 continue
                         
-                        # Method 2: Press Enter
                         if not posted:
-                            page.keyboard.press("Enter")
-                            log(f"    → Pressed Enter to post")
+                            # Try clicking by text
+                            try:
+                                page.get_by_text("Pubblica", exact=True).click()
+                                posted = True
+                                log(f"    ✓ Clicked Pubblica by text")
+                            except:
+                                # Fallback: press Ctrl+Enter or just Enter
+                                page.keyboard.press("Control+Enter")
+                                log(f"    → Pressed Ctrl+Enter")
                         
                         time.sleep(2)
                         
@@ -298,16 +322,20 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
                         
                         log(f"    ✓ Posted: \"{comment_text[:40]}...\"")
                         
+                        # Close comment panel by pressing Escape
+                        page.keyboard.press("Escape")
+                        time.sleep(1)
+                        
                         # Random delay before next video
                         delay = random.randint(settings["min_delay"], settings["max_delay"])
-                        log(f"    ⏳ Waiting {delay}s before next video...")
+                        log(f"    ⏳ Waiting {delay}s...")
                         
                         for i in range(delay):
                             if not automation_status["running"]:
                                 break
                             time.sleep(1)
                     else:
-                        log(f"    ⚠ Comment input not found, skipping...")
+                        log(f"    ⚠ Comment input not found")
                     
                 except Exception as e:
                     log(f"    ✗ Error on video: {e}")
