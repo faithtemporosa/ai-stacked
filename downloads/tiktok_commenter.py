@@ -606,13 +606,8 @@ def run_automation_thread(profile_ids, sheet_mapping):
     log(f"Total target: {len(profile_ids) * settings['videos_per_profile']} comments")
     log(f"{'='*50}")
     
-    # Load ALL comments from ALL sheets
-    log(f"Loading comments from all sheets...")
-    total_comments = 0
-    for sheet in SHEET_NAMES:
-        comments = fetch_google_sheet_comments(sheet)
-        total_comments += len(comments)
-    log(f"✓ Total comments loaded: {total_comments}")
+    # Comments are built-in promotional messages
+    log(f"📢 Using promotional comments for: Bump Connect, Kollabsy, Bump Syndicate")
     
     # Run profiles in parallel batches
     with ThreadPoolExecutor(max_workers=parallel) as executor:
