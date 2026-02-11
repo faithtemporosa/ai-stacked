@@ -151,26 +151,49 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
     videos_commented = 0
     target_videos = settings["videos_per_profile"]
     
-    with sync_playwright() as p:
-        try:
-            # Connect to AdsPower browser
-            browser = p.chromium.connect_over_cdp(ws_endpoint)
-            context = browser.contexts[0]
-            page = context.pages[0] if context.pages else context.new_page()
-            
-            log(f"  ✓ Connected to browser")
-            
-            # Go to TikTok For You page
-            log(f"  → Navigating to TikTok...")
-            page.goto("https://www.tiktok.com/foryou", timeout=60000)
-            time.sleep(5)
-            
-            # Wait for page to be ready
+    try:
+        with sync_playwright() as p:
             try:
-                page.wait_for_selector('video', timeout=15000)
-                log(f"  ✓ TikTok loaded")
-            except:
-                log(f"  ⚠ Page loaded but no video found yet, continuing...")
+                # Connect to AdsPower browser
+                log(f"  → Connecting to browser...")
+                browser = p.chromium.connect_over_cdp(ws_endpoint)
+                context = browser.contexts[0]
+                page = context.pages[0] if context.pages else context.new_page()
+                
+                log(f"  ✓ Connected to browser")
+                
+                # Go to TikTok For You page
+                log(f"  → Navigating to TikTok...")
+                try:
+                    page.goto("https://www.tiktok.com/foryou", timeout=60000)
+                    log(f"  ✓ Page loaded")
+                except Exception as nav_error:
+                    log(f"  ✗ Navigation error: {nav_error}")
+                    return False
+                
+                time.sleep(5)
+                
+                # Wait for page to be ready
+                try:
+                    page.wait_for_selector('video', timeout=15000)
+                    log(f"  ✓ Video element found")
+                except:
+                    log(f"  ⚠ No video found, checking if page loaded...")
+                    # Take a screenshot for debugging
+                    try:
+                        page.screenshot(path="/tmp/tiktok_debug.png")
+                        log(f"  📸 Debug screenshot saved to /tmp/tiktok_debug.png")
+                    except:
+                        pass
+                
+                # Check current URL
+                current_url = page.url
+                log(f"  📍 Current URL: {current_url}")
+                
+                # Check if redirected to login
+                if "login" in current_url.lower() or "signup" in current_url.lower():
+                    log(f"  ⚠ Redirected to login page - account may not be logged in")
+                    return False
             
             # Process videos
             for video_num in range(target_videos):
