@@ -602,6 +602,7 @@ def run_automation_thread(profile_ids, sheet_mapping):
         log(f"🎯 Targeting: #{settings['target_hashtag'].replace('#','')}")
     else:
         log(f"🎯 Targeting: For You Page")
+    log(f"📢 Promoting: Bump Connect, Kollabsy, Bump Syndicate")
     log(f"Total target: {len(profile_ids) * settings['videos_per_profile']} comments")
     log(f"{'='*50}")
     
