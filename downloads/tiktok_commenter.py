@@ -194,24 +194,32 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
             
             log(f"  ✓ Connected")
             
-            # Close all existing TikTok tabs, keep only one clean tab
-            log(f"  → Cleaning up tabs...")
+            # Close extra TikTok tabs only, keep AdsPower tab
+            log(f"  → Cleaning up TikTok tabs...")
             pages = context.pages
-            tiktok_tabs_closed = 0
+            tiktok_tabs = []
             
             for p in pages:
                 try:
                     if "tiktok" in p.url.lower():
-                        p.close()
-                        tiktok_tabs_closed += 1
+                        tiktok_tabs.append(p)
                 except:
                     pass
             
-            if tiktok_tabs_closed > 0:
-                log(f"  ✓ Closed {tiktok_tabs_closed} existing TikTok tab(s)")
-            
-            # Create fresh tab for TikTok
-            page = context.new_page()
+            # Close all TikTok tabs except keep first one (or close all if multiple)
+            if len(tiktok_tabs) > 1:
+                for p in tiktok_tabs[1:]:  # Keep first, close rest
+                    try:
+                        p.close()
+                    except:
+                        pass
+                log(f"  ✓ Closed {len(tiktok_tabs)-1} extra TikTok tab(s)")
+                page = tiktok_tabs[0]  # Use existing TikTok tab
+            elif len(tiktok_tabs) == 1:
+                page = tiktok_tabs[0]  # Use existing TikTok tab
+            else:
+                # No TikTok tab, create new one (keeps AdsPower tab open)
+                page = context.new_page()
             
             # Go to TikTok - either For You or target hashtag
             target_hashtag = settings.get("target_hashtag", "").strip()
