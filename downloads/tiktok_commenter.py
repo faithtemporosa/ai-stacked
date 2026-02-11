@@ -161,15 +161,15 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
             
             # Go to TikTok For You page
             log(f"  → Navigating to TikTok...")
-            page.goto("https://www.tiktok.com/foryou", wait_until="networkidle", timeout=30000)
-            time.sleep(3)
+            page.goto("https://www.tiktok.com/foryou", timeout=60000)
+            time.sleep(5)
             
-            # Check if logged in
-            if "login" in page.url.lower():
-                log(f"  ⚠ Not logged in to TikTok - skipping this profile")
-                return False
-            
-            log(f"  ✓ TikTok loaded")
+            # Wait for page to be ready
+            try:
+                page.wait_for_selector('video', timeout=15000)
+                log(f"  ✓ TikTok loaded")
+            except:
+                log(f"  ⚠ Page loaded but no video found yet, continuing...")
             
             # Process videos
             for video_num in range(target_videos):
