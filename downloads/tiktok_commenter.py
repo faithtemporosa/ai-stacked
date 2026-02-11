@@ -379,6 +379,44 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
         log(f"  📋 {traceback.format_exc()}")
         return False
 
+def run_single_profile(profile_id, sheet_name):
+    """Run automation for a single profile - used for parallel execution"""
+    profile = next((p for p in profiles if p.get("user_id") == profile_id), None)
+    if not profile:
+        return False
+    
+    profile_name = profile.get("name", profile_id)
+    
+    log(f"\n🚀 [{profile_name}] Starting...")
+    log(f"  [{profile_name}] Sheet: {sheet_name}")
+    
+    # Open browser
+    browser_data = open_browser(profile_id)
+    if not browser_data:
+        log(f"  [{profile_name}] ✗ Failed to open browser")
+        return False
+    
+    ws_endpoint = browser_data.get("ws", {}).get("puppeteer")
+    if not ws_endpoint:
+        log(f"  [{profile_name}] ✗ No WebSocket")
+        close_browser(profile_id)
+        return False
+    
+    # Run commenter
+    success = run_tiktok_commenter(ws_endpoint, profile_name, sheet_name)
+    
+    # Close browser
+    log(f"  [{profile_name}] Closing browser...")
+    close_browser(profile_id)
+    
+    if success:
+        automation_status["completed"].append(profile_id)
+        log(f"  [{profile_name}] ✓ Completed!")
+    else:
+        log(f"  [{profile_name}] ✗ Failed")
+    
+    return success
+
 def run_automation_thread(profile_ids, sheet_mapping):
     global automation_status
     
@@ -390,8 +428,11 @@ def run_automation_thread(profile_ids, sheet_mapping):
     automation_status["comments_posted"] = 0
     automation_status["report"] = []
     
+    parallel = settings.get("parallel_browsers", 3)
+    
     log(f"{'='*50}")
     log(f"Starting for {len(profile_ids)} profiles")
+    log(f"Running {parallel} browsers simultaneously")
     log(f"{'='*50}")
     
     # Load comments
@@ -399,49 +440,30 @@ def run_automation_thread(profile_ids, sheet_mapping):
         if sheet not in comments_cache:
             fetch_google_sheet_comments(sheet)
     
-    for i, profile_id in enumerate(profile_ids):
-        if not automation_status["running"]:
-            break
+    # Run profiles in parallel batches
+    with ThreadPoolExecutor(max_workers=parallel) as executor:
+        futures = {}
         
-        profile = next((p for p in profiles if p.get("user_id") == profile_id), None)
-        if not profile:
-            continue
+        for profile_id in profile_ids:
+            if not automation_status["running"]:
+                break
+            
+            sheet_name = sheet_mapping.get(profile_id, SHEET_NAMES[0])
+            future = executor.submit(run_single_profile, profile_id, sheet_name)
+            futures[future] = profile_id
         
-        profile_name = profile.get("name", profile_id)
-        sheet_name = sheet_mapping.get(profile_id, SHEET_NAMES[0])
-        
-        automation_status["current_profile"] = profile_name
-        automation_status["progress"] = i + 1
-        
-        log(f"\n[{i+1}/{len(profile_ids)}] {profile_name}")
-        log(f"  Sheet: {sheet_name}")
-        
-        # Open browser
-        log(f"  Opening browser...")
-        browser_data = open_browser(profile_id)
-        if not browser_data:
-            continue
-        
-        ws_endpoint = browser_data.get("ws", {}).get("puppeteer")
-        if not ws_endpoint:
-            log(f"  ✗ No WebSocket")
-            close_browser(profile_id)
-            continue
-        
-        # Run
-        success = run_tiktok_commenter(ws_endpoint, profile_name, sheet_name)
-        
-        # Close
-        log(f"  Closing browser...")
-        close_browser(profile_id)
-        
-        if success:
-            automation_status["completed"].append(profile_id)
-        
-        if i < len(profile_ids) - 1 and automation_status["running"]:
-            wait = random.randint(10, 20)
-            log(f"  Waiting {wait}s...")
-            time.sleep(wait)
+        # Wait for all to complete
+        for future in as_completed(futures):
+            if not automation_status["running"]:
+                break
+            
+            profile_id = futures[future]
+            automation_status["progress"] += 1
+            
+            try:
+                future.result()
+            except Exception as e:
+                log(f"  ✗ Error for {profile_id}: {e}")
     
     automation_status["running"] = False
     automation_status["current_profile"] = None
