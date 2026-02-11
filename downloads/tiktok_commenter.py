@@ -636,6 +636,8 @@ DASHBOARD_HTML = """
                 <div class="card">
                     <div class="card-title">Control</div>
                     <div class="settings">
+                        <div class="setting-row"><label>Target hashtag:</label><input type="text" id="hashtag" value="" placeholder="#socialmedia" style="width:150px;"></div>
+                        <div style="font-size:11px;color:#71717a;margin-bottom:10px;">Leave empty for For You page, or enter hashtag like #fitness</div>
                         <div class="setting-row"><label>Min delay (s):</label><input type="number" id="mind" value="30"></div>
                         <div class="setting-row"><label>Max delay (s):</label><input type="number" id="maxd" value="60"></div>
                         <div class="setting-row"><label>Videos/profile:</label><input type="number" id="vpp" value="100"></div>
