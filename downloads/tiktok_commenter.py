@@ -578,7 +578,7 @@ DASHBOARD_HTML = """
                     <div class="settings">
                         <div class="setting-row"><label>Min delay (s):</label><input type="number" id="mind" value="30"></div>
                         <div class="setting-row"><label>Max delay (s):</label><input type="number" id="maxd" value="60"></div>
-                        <div class="setting-row"><label>Videos/profile:</label><input type="number" id="vpp" value="10"></div>
+                        <div class="setting-row"><label>Videos/profile:</label><input type="number" id="vpp" value="100"></div>
                         <div class="setting-row"><label>Parallel browsers:</label><input type="number" id="para" value="3" min="1" max="10"></div>
                     </div>
                     <div class="stats">
