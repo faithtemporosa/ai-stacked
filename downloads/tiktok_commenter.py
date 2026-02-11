@@ -189,13 +189,11 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
             # Go to TikTok
             log(f"  → Opening TikTok...")
             try:
-                page.goto("https://www.tiktok.com/foryou", timeout=60000)
+                page.goto("https://www.tiktok.com/foryou", wait_until="domcontentloaded", timeout=90000)
             except Exception as e:
-                log(f"  ✗ Navigation failed: {e}")
-                browser.close()
-                return False
+                log(f"  ⚠ Slow load, continuing anyway...")
             
-            time.sleep(5)
+            time.sleep(8)  # Give more time for content to load
             
             # Check if logged in
             current_url = page.url
