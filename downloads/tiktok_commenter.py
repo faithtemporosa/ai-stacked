@@ -469,12 +469,16 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
                     log(f"    → Finding input...")
                     
                     result = page.evaluate('''() => {
-                        // Find comment input
+                        // Find comment input - look for the input area at bottom of comment section
                         const selectors = [
                             '[data-e2e="comment-input"]',
-                            'div[contenteditable="true"]',
-                            '[class*="DraftEditor"]',
-                            '[class*="CommentInput"]'
+                            '[placeholder*="commento" i]',
+                            '[placeholder*="comment" i]',
+                            '[placeholder*="Aggiungi" i]',
+                            '[placeholder*="Add" i]',
+                            '[class*="CommentInput"]',
+                            '[class*="DivInputContainer"] [contenteditable="true"]',
+                            'div[contenteditable="true"]'
                         ];
                         
                         for (let sel of selectors) {
@@ -483,6 +487,19 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
                                 el.click();
                                 el.focus();
                                 return {success: true, method: sel};
+                            }
+                        }
+                        
+                        // Try finding by text content
+                        const allDivs = document.querySelectorAll('div[contenteditable], input, textarea');
+                        for (let div of allDivs) {
+                            const placeholder = div.getAttribute('placeholder') || div.innerText || '';
+                            if (placeholder.toLowerCase().includes('comment') || 
+                                placeholder.toLowerCase().includes('commento') ||
+                                placeholder.toLowerCase().includes('aggiungi')) {
+                                div.click();
+                                div.focus();
+                                return {success: true, method: 'text-search'};
                             }
                         }
                         
