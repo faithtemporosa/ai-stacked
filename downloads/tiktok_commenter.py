@@ -380,13 +380,20 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
                 page.keyboard.press("ArrowDown")
                 time.sleep(2)
             
-            log(f"  ✓ Finished: {videos_commented} comments posted")
-            browser.close()
-            return videos_commented > 0
-            
-        except Exception as e:
-            log(f"  ✗ Error: {e}")
-            return False
+                log(f"  ✓ Finished: {videos_commented} comments posted")
+                browser.close()
+                return videos_commented > 0
+                
+            except Exception as e:
+                log(f"  ✗ Browser error: {e}")
+                import traceback
+                log(f"  📋 Traceback: {traceback.format_exc()}")
+                return False
+    except Exception as outer_error:
+        log(f"  ✗ Playwright error: {outer_error}")
+        import traceback
+        log(f"  📋 Full error: {traceback.format_exc()}")
+        return False
 
 def run_automation_thread(profile_ids, sheet_mapping):
     global automation_status
