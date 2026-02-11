@@ -313,14 +313,14 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
                     
                     time.sleep(0.5)
                     
-                    # Get comment
-                    comment_text = get_random_comment(sheet_name)
+                    # Get comment from ALL sheets combined
+                    comment_text, from_sheet = get_random_comment(sheet_name)
                     if not comment_text:
-                        log(f"    ⚠ No comments in sheet")
+                        log(f"    ⚠ No comments loaded")
                         continue
                     
                     # STEP 3: Type comment
-                    log(f"    → Typing...")
+                    log(f"    → Typing ({from_sheet})...")
                     page.keyboard.type(comment_text, delay=50)
                     time.sleep(1)
                     
