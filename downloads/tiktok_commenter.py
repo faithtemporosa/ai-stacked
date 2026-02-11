@@ -377,7 +377,7 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
                         "video_url": current_url,
                         "video_id": video_id,
                         "comment": comment_text,
-                        "sheet": sheet_name
+                        "sheet": from_sheet  # Track which sheet the comment came from
                     })
                     
                     # Save to file after each comment
