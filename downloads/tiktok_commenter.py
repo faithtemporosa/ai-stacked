@@ -672,8 +672,16 @@ def api_clear_logs():
     automation_status["logs"] = []
     return jsonify({"ok": True})
 
+@app.route('/api/clear-report', methods=['POST'])
+def api_clear_report():
+    automation_status["report"] = []
+    automation_status["comments_posted"] = 0
+    save_report_history()
+    return jsonify({"ok": True})
+
 if __name__ == "__main__":
     print("=" * 50)
     print("  TikTok Commenter - http://localhost:9090")
     print("=" * 50)
+    load_report_history()  # Load past runs
     app.run(host="0.0.0.0", port=9090, debug=False)
