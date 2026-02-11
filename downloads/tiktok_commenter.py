@@ -70,7 +70,8 @@ automation_status = {
     "total": 0,
     "logs": [],
     "completed": [],
-    "comments_posted": 0
+    "comments_posted": 0,
+    "report": []  # Detailed report of all comments
 }
 
 def log(message):
