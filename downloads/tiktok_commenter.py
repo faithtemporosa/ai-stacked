@@ -910,6 +910,12 @@ def api_clear_logs():
     automation_status["logs"] = []
     return jsonify({"ok": True})
 
+@app.route('/api/clear-report', methods=['POST'])
+def api_clear_report():
+    automation_status["report"] = []
+    automation_status["comments_posted"] = 0
+    return jsonify({"ok": True})
+
 # =============================================================================
 # MAIN
 # =============================================================================
