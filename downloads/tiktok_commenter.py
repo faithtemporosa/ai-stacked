@@ -59,6 +59,7 @@ settings = {
     "max_delay": MAX_DELAY_BETWEEN_COMMENTS,
     "videos_per_profile": VIDEOS_PER_PROFILE,
     "parallel_browsers": 2,  # Fixed at 2 browsers at a time
+    "target_hashtag": "",  # Target hashtag to search (e.g., #socialmedia)
 }
 
 automation_status = {
