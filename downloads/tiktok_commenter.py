@@ -456,7 +456,7 @@ DASHBOARD_HTML = """
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, system-ui, sans-serif; background: #0a0a0b; color: #e4e4e7; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
         h1 { font-size: 24px; margin-bottom: 4px; }
         .subtitle { color: #71717a; font-size: 14px; margin-bottom: 24px; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
@@ -468,6 +468,7 @@ DASHBOARD_HTML = """
         .btn-secondary { background: #27272a; color: #e4e4e7; }
         .btn-success { background: #16a34a; color: white; font-size: 16px; padding: 14px 32px; }
         .btn-danger { background: #dc2626; color: white; }
+        .btn-primary { background: #7c3aed; color: white; }
         .profile { display: flex; align-items: center; padding: 12px; background: #27272a; border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: all 0.15s; }
         .profile:hover { background: #3f3f46; }
         .profile.selected { background: #4c1d95; border: 1px solid #7c3aed; }
@@ -475,7 +476,7 @@ DASHBOARD_HTML = """
         .profile-info { flex: 1; }
         .profile-name { font-weight: 500; font-size: 14px; }
         .profile-id { color: #71717a; font-size: 12px; }
-        .profile-list { max-height: 350px; overflow-y: auto; margin-top: 12px; }
+        .profile-list { max-height: 300px; overflow-y: auto; margin-top: 12px; }
         select { padding: 6px 10px; background: #18181b; border: 1px solid #3f3f46; color: #e4e4e7; border-radius: 6px; font-size: 12px; }
         .stats { display: flex; gap: 24px; justify-content: center; margin: 20px 0; }
         .stat { text-align: center; }
@@ -483,7 +484,7 @@ DASHBOARD_HTML = """
         .stat-label { color: #71717a; font-size: 12px; margin-top: 4px; }
         .progress { width: 100%; height: 8px; background: #27272a; border-radius: 4px; margin: 16px 0; }
         .progress-fill { height: 100%; background: linear-gradient(90deg, #7c3aed, #a855f7); border-radius: 4px; transition: width 0.3s; }
-        .logs { background: #0f0f10; border-radius: 8px; padding: 16px; height: 300px; overflow-y: auto; font-family: 'SF Mono', Monaco, monospace; font-size: 12px; line-height: 1.7; }
+        .logs { background: #0f0f10; border-radius: 8px; padding: 16px; height: 200px; overflow-y: auto; font-family: 'SF Mono', Monaco, monospace; font-size: 12px; line-height: 1.7; }
         .log-entry { color: #a1a1aa; white-space: pre-wrap; }
         .log-entry.error { color: #f87171; }
         .log-entry.success { color: #4ade80; }
@@ -495,6 +496,20 @@ DASHBOARD_HTML = """
         .setting-row input { width: 80px; padding: 8px; background: #27272a; border: 1px solid #3f3f46; color: white; border-radius: 6px; font-size: 13px; }
         .center { text-align: center; }
         .warning { background: #422006; border: 1px solid #854d0e; border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 13px; color: #fbbf24; }
+        .tabs { display: flex; gap: 4px; margin-bottom: 20px; background: #18181b; padding: 4px; border-radius: 10px; width: fit-content; }
+        .tab { padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; transition: all 0.15s; }
+        .tab:hover { background: #27272a; }
+        .tab.active { background: #7c3aed; color: white; }
+        .report-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .report-table th { text-align: left; padding: 12px; background: #27272a; color: #a1a1aa; font-weight: 500; }
+        .report-table td { padding: 12px; border-bottom: 1px solid #27272a; }
+        .report-table tr:hover { background: #1f1f23; }
+        .report-table a { color: #a78bfa; text-decoration: none; }
+        .report-table a:hover { text-decoration: underline; }
+        .comment-cell { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .report-container { max-height: 400px; overflow-y: auto; }
+        .empty-state { text-align: center; padding: 40px; color: #71717a; }
+        .export-btns { display: flex; gap: 10px; margin-bottom: 16px; }
     </style>
 </head>
 <body>
@@ -502,78 +517,142 @@ DASHBOARD_HTML = """
         <h1>🎵 TikTok Direct Commenter</h1>
         <p class="subtitle">Automatically comment on TikTok videos with random delays</p>
         
-        <div class="grid">
-            <!-- Left: Profiles -->
-            <div class="card">
-                <div class="card-title">
-                    <span>Browser Profiles</span>
-                    <span id="profile-count" style="color:#71717a; font-weight:normal; font-size:13px;">0 profiles</span>
+        <!-- Tabs -->
+        <div class="tabs">
+            <div class="tab active" onclick="showTab('main')">🎮 Control</div>
+            <div class="tab" onclick="showTab('report')">📊 Report</div>
+        </div>
+        
+        <!-- Main Tab -->
+        <div id="tab-main">
+            <div class="grid">
+                <!-- Left: Profiles -->
+                <div class="card">
+                    <div class="card-title">
+                        <span>Browser Profiles</span>
+                        <span id="profile-count" style="color:#71717a; font-weight:normal; font-size:13px;">0 profiles</span>
+                    </div>
+                    <div class="actions">
+                        <button class="btn btn-secondary" onclick="syncProfiles()">🔄 Sync Profiles</button>
+                        <button class="btn btn-secondary" onclick="loadComments()">📄 Load Comments</button>
+                        <button class="btn btn-secondary" onclick="selectAll()">Select All</button>
+                    </div>
+                    <div class="profile-list" id="profile-list">
+                        <div style="text-align:center; color:#71717a; padding:50px 20px;">
+                            Click "Sync Profiles" to load your AdsPower profiles
+                        </div>
+                    </div>
                 </div>
-                <div class="actions">
-                    <button class="btn btn-secondary" onclick="syncProfiles()">🔄 Sync Profiles</button>
-                    <button class="btn btn-secondary" onclick="loadComments()">📄 Load Comments</button>
-                    <button class="btn btn-secondary" onclick="selectAll()">Select All</button>
-                </div>
-                <div class="profile-list" id="profile-list">
-                    <div style="text-align:center; color:#71717a; padding:50px 20px;">
-                        Click "Sync Profiles" to load your AdsPower profiles
+                
+                <!-- Right: Control -->
+                <div class="card">
+                    <div class="card-title">Settings & Control</div>
+                    
+                    <div class="warning">
+                        ⚠️ Use random delays to avoid detection. Don't comment too fast or TikTok may flag your account.
+                    </div>
+                    
+                    <div class="settings">
+                        <h4>⚙️ Timing Settings</h4>
+                        <div class="setting-row">
+                            <label>Min delay (seconds):</label>
+                            <input type="number" id="min-delay" value="30" min="10">
+                        </div>
+                        <div class="setting-row">
+                            <label>Max delay (seconds):</label>
+                            <input type="number" id="max-delay" value="60" min="20">
+                        </div>
+                        <div class="setting-row">
+                            <label>Videos per profile:</label>
+                            <input type="number" id="videos-per-profile" value="10" min="1" max="50">
+                        </div>
+                        <button class="btn btn-secondary" onclick="saveSettings()" style="margin-top:8px;">💾 Save Settings</button>
+                    </div>
+                    
+                    <div class="stats">
+                        <div class="stat">
+                            <div class="stat-value" id="stat-profiles">0</div>
+                            <div class="stat-label">Profiles Done</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value" id="stat-comments">0</div>
+                            <div class="stat-label">Comments Posted</div>
+                        </div>
+                    </div>
+                    
+                    <div class="progress"><div class="progress-fill" id="progress" style="width:0%"></div></div>
+                    <p class="center" style="color:#71717a; font-size:13px;" id="status-text">Ready to start</p>
+                    
+                    <div class="center" style="margin-top:20px;">
+                        <button class="btn btn-success" id="start-btn" onclick="startAutomation()">▶ Start Commenting</button>
+                        <button class="btn btn-danger" id="stop-btn" onclick="stopAutomation()" style="display:none;">⏹ Stop</button>
                     </div>
                 </div>
             </div>
             
-            <!-- Right: Control -->
-            <div class="card">
-                <div class="card-title">Settings & Control</div>
-                
-                <div class="warning">
-                    ⚠️ Use random delays to avoid detection. Don't comment too fast or TikTok may flag your account.
+            <!-- Logs -->
+            <div class="card" style="margin-top:20px;">
+                <div class="card-title">
+                    <span>📋 Activity Log</span>
+                    <button class="btn btn-secondary" style="padding:6px 12px; font-size:12px;" onclick="clearLogs()">Clear</button>
                 </div>
-                
-                <div class="settings">
-                    <h4>⚙️ Timing Settings</h4>
-                    <div class="setting-row">
-                        <label>Min delay (seconds):</label>
-                        <input type="number" id="min-delay" value="30" min="10">
-                    </div>
-                    <div class="setting-row">
-                        <label>Max delay (seconds):</label>
-                        <input type="number" id="max-delay" value="60" min="20">
-                    </div>
-                    <div class="setting-row">
-                        <label>Videos per profile:</label>
-                        <input type="number" id="videos-per-profile" value="10" min="1" max="50">
-                    </div>
-                    <button class="btn btn-secondary" onclick="saveSettings()" style="margin-top:8px;">💾 Save Settings</button>
-                </div>
-                
-                <div class="stats">
-                    <div class="stat">
-                        <div class="stat-value" id="stat-profiles">0</div>
-                        <div class="stat-label">Profiles Done</div>
-                    </div>
-                    <div class="stat">
-                        <div class="stat-value" id="stat-comments">0</div>
-                        <div class="stat-label">Comments Posted</div>
-                    </div>
-                </div>
-                
-                <div class="progress"><div class="progress-fill" id="progress" style="width:0%"></div></div>
-                <p class="center" style="color:#71717a; font-size:13px;" id="status-text">Ready to start</p>
-                
-                <div class="center" style="margin-top:20px;">
-                    <button class="btn btn-success" id="start-btn" onclick="startAutomation()">▶ Start Commenting</button>
-                    <button class="btn btn-danger" id="stop-btn" onclick="stopAutomation()" style="display:none;">⏹ Stop</button>
-                </div>
+                <div class="logs" id="logs">Waiting to start...</div>
             </div>
         </div>
         
-        <!-- Logs -->
-        <div class="card" style="margin-top:20px;">
-            <div class="card-title">
-                <span>📋 Activity Log</span>
-                <button class="btn btn-secondary" style="padding:6px 12px; font-size:12px;" onclick="clearLogs()">Clear</button>
+        <!-- Report Tab -->
+        <div id="tab-report" style="display:none;">
+            <div class="card">
+                <div class="card-title">
+                    <span>📊 Comments Report</span>
+                    <span id="report-count" style="color:#71717a; font-weight:normal;">0 comments</span>
+                </div>
+                
+                <div class="export-btns">
+                    <button class="btn btn-primary" onclick="exportCSV()">📥 Export CSV</button>
+                    <button class="btn btn-secondary" onclick="clearReport()">🗑️ Clear Report</button>
+                </div>
+                
+                <div class="report-container">
+                    <table class="report-table" id="report-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Profile</th>
+                                <th>Comment</th>
+                                <th>Video Link</th>
+                                <th>Sheet</th>
+                            </tr>
+                        </thead>
+                        <tbody id="report-body">
+                            <tr><td colspan="5" class="empty-state">No comments posted yet</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Summary Stats -->
+                <div style="margin-top:20px; padding:16px; background:#27272a; border-radius:8px;">
+                    <h4 style="margin-bottom:12px; font-size:14px;">📈 Summary</h4>
+                    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px; text-align:center;">
+                        <div>
+                            <div style="font-size:24px; font-weight:700; color:#4ade80;" id="sum-total">0</div>
+                            <div style="font-size:12px; color:#71717a;">Total Comments</div>
+                        </div>
+                        <div>
+                            <div style="font-size:24px; font-weight:700; color:#a78bfa;" id="sum-profiles">0</div>
+                            <div style="font-size:12px; color:#71717a;">Profiles Used</div>
+                        </div>
+                        <div>
+                            <div style="font-size:24px; font-weight:700; color:#fbbf24;" id="sum-videos">0</div>
+                            <div style="font-size:12px; color:#71717a;">Unique Videos</div>
+                        </div>
+                        <div>
+                            <div style="font-size:24px; font-weight:700; color:#f87171;" id="sum-sheets">0</div>
+                            <div style="font-size:12px; color:#71717a;">Sheets Used</div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="logs" id="logs">Waiting to start...</div>
         </div>
     </div>
     
@@ -581,9 +660,17 @@ DASHBOARD_HTML = """
         let profiles = [];
         let selected = new Set();
         let sheetMap = {};
+        let report = [];
         const SHEETS = ['Bump Connect', 'Bump Syndicate', 'Kollabsy'];
         
         setInterval(updateStatus, 1000);
+        
+        function showTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('tab-main').style.display = tab === 'main' ? 'block' : 'none';
+            document.getElementById('tab-report').style.display = tab === 'report' ? 'block' : 'none';
+        }
         
         async function syncProfiles() {
             const res = await fetch('/api/sync-profiles', {method: 'POST'});
@@ -685,6 +772,7 @@ DASHBOARD_HTML = """
                     }
                 }
                 
+                // Update logs
                 if (data.logs.length) {
                     const logsEl = document.getElementById('logs');
                     logsEl.innerHTML = data.logs.map(l => {
@@ -695,7 +783,61 @@ DASHBOARD_HTML = """
                     }).join('');
                     logsEl.scrollTop = logsEl.scrollHeight;
                 }
+                
+                // Update report
+                if (data.report) {
+                    report = data.report;
+                    renderReport();
+                }
             } catch(e) {}
+        }
+        
+        function renderReport() {
+            const tbody = document.getElementById('report-body');
+            document.getElementById('report-count').textContent = report.length + ' comments';
+            
+            if (!report.length) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No comments posted yet</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = report.map(r => `
+                <tr>
+                    <td>${r.timestamp}</td>
+                    <td>${r.profile}</td>
+                    <td class="comment-cell" title="${r.comment}">${r.comment.substring(0, 50)}${r.comment.length > 50 ? '...' : ''}</td>
+                    <td><a href="${r.video_url}" target="_blank">🔗 Open Video</a></td>
+                    <td>${r.sheet}</td>
+                </tr>
+            `).join('');
+            
+            // Update summary
+            document.getElementById('sum-total').textContent = report.length;
+            document.getElementById('sum-profiles').textContent = [...new Set(report.map(r => r.profile))].length;
+            document.getElementById('sum-videos').textContent = [...new Set(report.map(r => r.video_id))].length;
+            document.getElementById('sum-sheets').textContent = [...new Set(report.map(r => r.sheet))].length;
+        }
+        
+        function exportCSV() {
+            if (!report.length) { alert('No data to export'); return; }
+            
+            const headers = ['Timestamp', 'Profile', 'Comment', 'Video URL', 'Video ID', 'Sheet'];
+            const rows = report.map(r => [r.timestamp, r.profile, `"${r.comment.replace(/"/g, '""')}"`, r.video_url, r.video_id, r.sheet]);
+            const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\\n');
+            
+            const blob = new Blob([csv], {type: 'text/csv'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `tiktok_comments_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+        }
+        
+        async function clearReport() {
+            if (!confirm('Clear all report data?')) return;
+            await fetch('/api/clear-report', {method: 'POST'});
+            report = [];
+            renderReport();
         }
         
         function clearLogs() {
