@@ -194,6 +194,25 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
             
             log(f"  ✓ Connected")
             
+            # Close all existing TikTok tabs, keep only one clean tab
+            log(f"  → Cleaning up tabs...")
+            pages = context.pages
+            tiktok_tabs_closed = 0
+            
+            for p in pages:
+                try:
+                    if "tiktok" in p.url.lower():
+                        p.close()
+                        tiktok_tabs_closed += 1
+                except:
+                    pass
+            
+            if tiktok_tabs_closed > 0:
+                log(f"  ✓ Closed {tiktok_tabs_closed} existing TikTok tab(s)")
+            
+            # Create fresh tab for TikTok
+            page = context.new_page()
+            
             # Go to TikTok - either For You or target hashtag
             target_hashtag = settings.get("target_hashtag", "").strip()
             
