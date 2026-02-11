@@ -38,7 +38,7 @@ except ImportError:
 # =============================================================================
 ADSPOWER_API = "http://localhost:50325"
 GOOGLE_SHEET_ID = "1cgjxB09nXSsKMEFwNxQlDzl8xVDyQgT0o8aKm6YOJ-o"
-SHEET_NAMES = ["Bump Connect", "Bump Syndicate", "Kollabsy"]
+SHEET_NAMES = ["Bump Connect", "Kollabsy", "Bump Syndicate"]
 
 MIN_DELAY_BETWEEN_COMMENTS = 30
 MAX_DELAY_BETWEEN_COMMENTS = 60
