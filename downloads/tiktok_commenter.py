@@ -522,6 +522,12 @@ DASHBOARD_HTML = """
         .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
         h1 { font-size: 24px; margin-bottom: 4px; }
         .subtitle { color: #71717a; font-size: 14px; margin-bottom: 24px; }
+        .target-info { background: linear-gradient(135deg, #1e1b4b, #312e81); border: 1px solid #4c1d95; border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+        .target-info h3 { font-size: 14px; color: #a78bfa; margin-bottom: 8px; }
+        .target-stats { display: flex; gap: 32px; }
+        .target-stat { text-align: center; }
+        .target-stat .num { font-size: 28px; font-weight: 700; color: #fff; }
+        .target-stat .lbl { font-size: 11px; color: #a1a1aa; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .card { background: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 20px; }
         .card-title { font-weight: 600; margin-bottom: 16px; display: flex; justify-content: space-between; }
@@ -557,8 +563,18 @@ DASHBOARD_HTML = """
 </head>
 <body>
     <div class="container">
-        <h1>🎵 TikTok Direct Commenter</h1>
-        <p class="subtitle">Auto-comment on TikTok videos</p>
+        <h1>🎵 TikTok Auto Commenter</h1>
+        <p class="subtitle">Daily target: 25 browsers × 100 videos = 2,500 comments</p>
+        
+        <div class="target-info">
+            <h3>📊 Daily Target</h3>
+            <div class="target-stats">
+                <div class="target-stat"><div class="num">25</div><div class="lbl">Browsers/Day</div></div>
+                <div class="target-stat"><div class="num">100</div><div class="lbl">Videos/Browser</div></div>
+                <div class="target-stat"><div class="num">2,500</div><div class="lbl">Total Comments</div></div>
+                <div class="target-stat"><div class="num">3,000</div><div class="lbl">Comments Pool</div></div>
+            </div>
+        </div>
         
         <div class="tabs">
             <div class="tab active" onclick="showTab('main')">🎮 Control</div>
@@ -568,11 +584,11 @@ DASHBOARD_HTML = """
         <div id="tab-main">
             <div class="grid">
                 <div class="card">
-                    <div class="card-title"><span>Profiles</span><span id="pc" style="color:#71717a">0</span></div>
+                    <div class="card-title"><span>Profiles (Select 25)</span><span id="pc" style="color:#71717a">0</span></div>
                     <div style="display:flex;gap:8px;margin-bottom:12px;">
                         <button class="btn btn-secondary" onclick="sync()">🔄 Sync</button>
                         <button class="btn btn-secondary" onclick="loadC()">📄 Comments</button>
-                        <button class="btn btn-secondary" onclick="selAll()">Select All</button>
+                        <button class="btn btn-secondary" onclick="selAll()">Select All 25</button>
                     </div>
                     <div class="profile-list" id="pl"></div>
                 </div>
@@ -585,20 +601,20 @@ DASHBOARD_HTML = """
                         <div class="setting-row"><label>Parallel browsers:</label><input type="number" id="para" value="2" min="1" max="10"></div>
                     </div>
                     <div class="stats">
-                        <div class="stat"><div class="stat-value" id="sp">0</div><div class="stat-label">Profiles</div></div>
-                        <div class="stat"><div class="stat-value" id="sc">0</div><div class="stat-label">Comments</div></div>
+                        <div class="stat"><div class="stat-value" id="sp">0</div><div class="stat-label">Profiles Done</div></div>
+                        <div class="stat"><div class="stat-value" id="sc">0</div><div class="stat-label">Comments Today</div></div>
                     </div>
                     <div class="progress"><div class="progress-fill" id="prog" style="width:0%"></div></div>
-                    <p class="center" style="color:#71717a" id="st">Ready</p>
+                    <p class="center" style="color:#71717a" id="st">Ready - Click Start to run 25 browsers</p>
                     <div class="center" style="margin-top:20px;">
-                        <button class="btn btn-success" id="startb" onclick="start()">▶ Start</button>
+                        <button class="btn btn-success" id="startb" onclick="start()">▶ Start Daily Run</button>
                         <button class="btn btn-danger" id="stopb" onclick="stop()" style="display:none">⏹ Stop</button>
                     </div>
                 </div>
             </div>
             <div class="card" style="margin-top:20px;">
                 <div class="card-title"><span>Log</span><button class="btn btn-secondary" style="padding:4px 8px" onclick="clrLog()">Clear</button></div>
-                <div class="logs" id="logs">Ready...</div>
+                <div class="logs" id="logs">Ready - Select all 25 profiles and click Start...</div>
             </div>
         </div>
         
@@ -629,12 +645,12 @@ DASHBOARD_HTML = """
         function showTab(t){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));event.target.classList.add('active');document.getElementById('tab-main').style.display=t=='main'?'block':'none';document.getElementById('tab-report').style.display=t=='report'?'block':'none';}
         async function sync(){const r=await fetch('/api/sync-profiles',{method:'POST'});profiles=(await r.json()).profiles||[];render();}
         async function loadC(){const r=await fetch('/api/load-comments',{method:'POST'});const d=await r.json();alert('Loaded:\\n'+Object.entries(d.counts).map(([k,v])=>k+': '+v).join('\\n'));}
-        function render(){const e=document.getElementById('pl');if(!profiles.length){e.innerHTML='<div style="text-align:center;color:#71717a;padding:40px">Click Sync</div>';return;}e.innerHTML=profiles.map(p=>'<div class="profile '+(selected.has(p.user_id)?'selected':'')+'" onclick="tog(\\''+p.user_id+'\\')"><input type="checkbox" '+(selected.has(p.user_id)?'checked':'')+' onclick="event.stopPropagation();tog(\\''+p.user_id+'\\')"><div style="flex:1"><div style="font-weight:500">'+(p.name||p.user_id)+'</div><div style="font-size:11px;color:#71717a">'+p.user_id+'</div></div><select onclick="event.stopPropagation()" onchange="sheetMap[\\''+p.user_id+'\\']=this.value">'+SHEETS.map(s=>'<option'+(sheetMap[p.user_id]==s?' selected':'')+'>'+s+'</option>').join('')+'</select></div>').join('');document.getElementById('pc').textContent=profiles.length;}
-        function tog(id){selected.has(id)?selected.delete(id):selected.add(id);if(!sheetMap[id])sheetMap[id]=SHEETS[0];render();}
-        function selAll(){if(selected.size==profiles.length)selected.clear();else profiles.forEach(p=>{selected.add(p.user_id);sheetMap[p.user_id]=sheetMap[p.user_id]||SHEETS[0];});render();}
-        async function start(){if(!selected.size){alert('Select profiles');return;}await fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({min_delay:+document.getElementById('mind').value,max_delay:+document.getElementById('maxd').value,videos_per_profile:+document.getElementById('vpp').value,parallel_browsers:+document.getElementById('para').value})});await fetch('/api/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile_ids:[...selected],sheet_mapping:sheetMap})});document.getElementById('startb').style.display='none';document.getElementById('stopb').style.display='inline';}
+        function render(){const e=document.getElementById('pl');if(!profiles.length){e.innerHTML='<div style="text-align:center;color:#71717a;padding:40px">Click Sync to load 25 profiles</div>';return;}e.innerHTML=profiles.map(p=>'<div class="profile '+(selected.has(p.user_id)?'selected':'')+'" onclick="tog(\\''+p.user_id+'\\')"><input type="checkbox" '+(selected.has(p.user_id)?'checked':'')+' onclick="event.stopPropagation();tog(\\''+p.user_id+'\\')"><div style="flex:1"><div style="font-weight:500">'+(p.name||p.user_id)+'</div><div style="font-size:11px;color:#71717a">'+p.user_id+'</div></div></div>').join('');document.getElementById('pc').textContent=selected.size+'/'+profiles.length+' selected';}
+        function tog(id){selected.has(id)?selected.delete(id):selected.add(id);render();}
+        function selAll(){if(selected.size==profiles.length)selected.clear();else profiles.forEach(p=>selected.add(p.user_id));render();}
+        async function start(){if(!selected.size){alert('Select profiles first');return;}await fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({min_delay:+document.getElementById('mind').value,max_delay:+document.getElementById('maxd').value,videos_per_profile:+document.getElementById('vpp').value,parallel_browsers:+document.getElementById('para').value})});await fetch('/api/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile_ids:[...selected],sheet_mapping:{}})});document.getElementById('startb').style.display='none';document.getElementById('stopb').style.display='inline';}
         async function stop(){await fetch('/api/stop',{method:'POST'});}
-        async function upd(){try{const r=await fetch('/api/status');const d=await r.json();document.getElementById('prog').style.width=(d.total?(d.progress/d.total*100):0)+'%';document.getElementById('sp').textContent=d.completed.length;document.getElementById('sc').textContent=d.comments_posted||0;document.getElementById('st').textContent=d.running?'Running: '+d.current_profile:'Ready';if(!d.running){document.getElementById('startb').style.display='inline';document.getElementById('stopb').style.display='none';}if(d.logs.length)document.getElementById('logs').innerHTML=d.logs.map(l=>'<div style="color:'+(l.includes('✗')?'#f87171':l.includes('✓')?'#4ade80':'#a1a1aa')+'">'+l+'</div>').join('');if(d.report){report=d.report;document.getElementById('rc').textContent=report.length+' total';document.getElementById('rb').innerHTML=report.length?report.slice().reverse().map(r=>'<tr><td>'+r.timestamp+'</td><td>'+r.profile+'</td><td title="'+r.comment+'">'+r.comment.substring(0,40)+'...</td><td><a href="'+r.video_url+'" target="_blank">🔗</a></td><td>'+r.sheet+'</td></tr>').join(''):'<tr><td colspan="5" style="text-align:center;color:#71717a">No data</td></tr>';document.getElementById('sum-total').textContent=report.length;document.getElementById('sum-profiles').textContent=[...new Set(report.map(r=>r.profile))].length;document.getElementById('sum-videos').textContent=[...new Set(report.map(r=>r.video_id))].length;}}catch(e){}}
+        async function upd(){try{const r=await fetch('/api/status');const d=await r.json();document.getElementById('prog').style.width=(d.total?(d.progress/d.total*100):0)+'%';document.getElementById('sp').textContent=d.completed.length;document.getElementById('sc').textContent=d.comments_posted||0;document.getElementById('st').textContent=d.running?'Running: '+d.current_profile+' ('+d.progress+'/'+d.total+')':'Ready';if(!d.running){document.getElementById('startb').style.display='inline';document.getElementById('stopb').style.display='none';}if(d.logs.length)document.getElementById('logs').innerHTML=d.logs.map(l=>'<div style="color:'+(l.includes('✗')?'#f87171':l.includes('✓')?'#4ade80':'#a1a1aa')+'">'+l+'</div>').join('');if(d.report){report=d.report;document.getElementById('rc').textContent=report.length+' total';document.getElementById('rb').innerHTML=report.length?report.slice().reverse().map(r=>'<tr><td>'+r.timestamp+'</td><td>'+r.profile+'</td><td title="'+r.comment+'">'+r.comment.substring(0,40)+'...</td><td><a href="'+r.video_url+'" target="_blank">🔗</a></td><td>'+r.sheet+'</td></tr>').join(''):'<tr><td colspan="5" style="text-align:center;color:#71717a">No data</td></tr>';document.getElementById('sum-total').textContent=report.length;document.getElementById('sum-profiles').textContent=[...new Set(report.map(r=>r.profile))].length;document.getElementById('sum-videos').textContent=[...new Set(report.map(r=>r.video_id))].length;}}catch(e){}}
         function clrLog(){fetch('/api/clear-logs',{method:'POST'});document.getElementById('logs').innerHTML='Cleared';}
         async function clrReport(){if(!confirm('Clear ALL comment history? This cannot be undone.'))return;await fetch('/api/clear-report',{method:'POST'});report=[];document.getElementById('rb').innerHTML='<tr><td colspan="5" style="text-align:center;color:#71717a">No data</td></tr>';document.getElementById('rc').textContent='0 total';}
         function expCSV(){if(!report.length)return alert('No data');const csv='Time,Profile,Comment,URL,Sheet\\n'+report.map(r=>r.timestamp+','+r.profile+',"'+r.comment.replace(/"/g,'""')+'",'+r.video_url+','+r.sheet).join('\\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv]));a.download='tiktok_comments_'+new Date().toISOString().split('T')[0]+'.csv';a.click();}
