@@ -652,7 +652,8 @@ DASHBOARD_HTML = """
         </div>
     </div>
     <script>
-        let profiles=[],selected=new Set(),sheetMap={},report=[];
+        let profiles=[],selected=new Set(),sheetMap={},report=[],filteredReport=[];
+        let currentFilter='all';
         const SHEETS=['Bump Connect','Kollabsy','Bump Syndicate'];
         setInterval(upd,1000);
         function showTab(t){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));event.target.classList.add('active');document.getElementById('tab-main').style.display=t=='main'?'block':'none';document.getElementById('tab-report').style.display=t=='report'?'block':'none';}
@@ -663,10 +664,48 @@ DASHBOARD_HTML = """
         function selAll(){if(selected.size==profiles.length)selected.clear();else profiles.forEach(p=>selected.add(p.user_id));render();}
         async function start(){if(!selected.size){alert('Select profiles first');return;}await fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({min_delay:+document.getElementById('mind').value,max_delay:+document.getElementById('maxd').value,videos_per_profile:+document.getElementById('vpp').value})});await fetch('/api/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile_ids:[...selected],sheet_mapping:{}})});document.getElementById('startb').style.display='none';document.getElementById('stopb').style.display='inline';}
         async function stop(){await fetch('/api/stop',{method:'POST'});}
-        async function upd(){try{const r=await fetch('/api/status');const d=await r.json();document.getElementById('prog').style.width=(d.total?(d.progress/d.total*100):0)+'%';document.getElementById('sp').textContent=d.completed.length;document.getElementById('sc').textContent=d.comments_posted||0;document.getElementById('st').textContent=d.running?'Running: '+d.current_profile+' ('+d.progress+'/'+d.total+')':'Ready';if(!d.running){document.getElementById('startb').style.display='inline';document.getElementById('stopb').style.display='none';}if(d.logs.length)document.getElementById('logs').innerHTML=d.logs.map(l=>'<div style="color:'+(l.includes('✗')?'#f87171':l.includes('✓')?'#4ade80':'#a1a1aa')+'">'+l+'</div>').join('');if(d.report){report=d.report;document.getElementById('rc').textContent=report.length+' total';document.getElementById('rb').innerHTML=report.length?report.slice().reverse().map(r=>'<tr><td>'+r.timestamp+'</td><td>'+r.profile+'</td><td title="'+r.comment+'">'+r.comment.substring(0,40)+'...</td><td><a href="'+r.video_url+'" target="_blank">🔗</a></td><td>'+r.sheet+'</td></tr>').join(''):'<tr><td colspan="5" style="text-align:center;color:#71717a">No data</td></tr>';document.getElementById('sum-total').textContent=report.length;document.getElementById('sum-profiles').textContent=[...new Set(report.map(r=>r.profile))].length;document.getElementById('sum-videos').textContent=[...new Set(report.map(r=>r.video_id))].length;}}catch(e){}}
+        
+        function filterToday(){currentFilter='today';applyFilter();}
+        function filterWeek(){currentFilter='week';applyFilter();}
+        function filterMonth(){currentFilter='month';applyFilter();}
+        function filterAll(){currentFilter='all';applyFilter();}
+        
+        function applyFilter(){
+            const now=new Date();
+            const today=now.toISOString().split('T')[0];
+            const weekAgo=new Date(now-7*24*60*60*1000).toISOString().split('T')[0];
+            const monthAgo=new Date(now-30*24*60*60*1000).toISOString().split('T')[0];
+            
+            if(currentFilter=='today'){
+                filteredReport=report.filter(r=>r.timestamp.startsWith(today));
+                document.getElementById('filter-info').textContent='Showing: Today ('+today+')';
+            }else if(currentFilter=='week'){
+                filteredReport=report.filter(r=>r.timestamp>=weekAgo);
+                document.getElementById('filter-info').textContent='Showing: Last 7 days';
+            }else if(currentFilter=='month'){
+                filteredReport=report.filter(r=>r.timestamp>=monthAgo);
+                document.getElementById('filter-info').textContent='Showing: Last 30 days';
+            }else{
+                filteredReport=report;
+                document.getElementById('filter-info').textContent='Showing: All time ('+report.length+' comments)';
+            }
+            renderReport();
+        }
+        
+        function renderReport(){
+            document.getElementById('rc').textContent=report.length+' total';
+            document.getElementById('rb').innerHTML=filteredReport.length?filteredReport.slice().reverse().map(r=>'<tr><td style="white-space:nowrap">'+r.timestamp+'</td><td>'+r.profile+'</td><td title="'+r.comment.replace(/"/g,'&quot;')+'">'+r.comment.substring(0,35)+'...</td><td><a href="'+r.video_url+'" target="_blank">🔗 Open</a></td><td>'+r.sheet+'</td></tr>').join(''):'<tr><td colspan="5" style="text-align:center;color:#71717a;padding:20px">No comments for this period</td></tr>';
+            document.getElementById('sum-total').textContent=report.length;
+            document.getElementById('sum-profiles').textContent=[...new Set(report.map(r=>r.profile))].length;
+            document.getElementById('sum-videos').textContent=[...new Set(report.map(r=>r.video_id))].length;
+            const today=new Date().toISOString().split('T')[0];
+            document.getElementById('sum-today').textContent=report.filter(r=>r.timestamp.startsWith(today)).length;
+        }
+        
+        async function upd(){try{const r=await fetch('/api/status');const d=await r.json();document.getElementById('prog').style.width=(d.total?(d.progress/d.total*100):0)+'%';document.getElementById('sp').textContent=d.completed.length;document.getElementById('sc').textContent=d.comments_posted||0;document.getElementById('st').textContent=d.running?'Running: '+d.current_profile+' ('+d.progress+'/'+d.total+')':'Ready';if(!d.running){document.getElementById('startb').style.display='inline';document.getElementById('stopb').style.display='none';}if(d.logs.length)document.getElementById('logs').innerHTML=d.logs.map(l=>'<div style="color:'+(l.includes('✗')?'#f87171':l.includes('✓')?'#4ade80':'#a1a1aa')+'">'+l+'</div>').join('');if(d.report&&d.report.length!==report.length){report=d.report;applyFilter();}}catch(e){}}
         function clrLog(){fetch('/api/clear-logs',{method:'POST'});document.getElementById('logs').innerHTML='Cleared';}
-        async function clrReport(){if(!confirm('Clear ALL comment history? This cannot be undone.'))return;await fetch('/api/clear-report',{method:'POST'});report=[];document.getElementById('rb').innerHTML='<tr><td colspan="5" style="text-align:center;color:#71717a">No data</td></tr>';document.getElementById('rc').textContent='0 total';}
-        function expCSV(){if(!report.length)return alert('No data');const csv='Time,Profile,Comment,URL,Sheet\\n'+report.map(r=>r.timestamp+','+r.profile+',"'+r.comment.replace(/"/g,'""')+'",'+r.video_url+','+r.sheet).join('\\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv]));a.download='tiktok_comments_'+new Date().toISOString().split('T')[0]+'.csv';a.click();}
+        async function clrReport(){if(!confirm('⚠️ Delete ALL comment history forever?\\n\\nThis will remove '+report.length+' comments and cannot be undone.'))return;await fetch('/api/clear-report',{method:'POST'});report=[];filteredReport=[];renderReport();}
+        function expCSV(){if(!report.length)return alert('No data');const csv='Date,Time,Profile,Comment,Video URL,Sheet\\n'+report.map(r=>{const[d,t]=r.timestamp.split(' ');return d+','+t+','+r.profile+',"'+r.comment.replace(/"/g,'""')+'",'+r.video_url+','+r.sheet;}).join('\\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv]));a.download='tiktok_comments_history_'+new Date().toISOString().split('T')[0]+'.csv';a.click();}
     </script>
 </body>
 </html>
