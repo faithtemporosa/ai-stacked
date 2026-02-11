@@ -458,6 +458,16 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
                 except Exception as e:
                     log(f"    ✗ Error: {e}")
                 
+                # Close any extra tabs that might have opened
+                try:
+                    current_pages = context.pages
+                    if len(current_pages) > 1:
+                        for p in current_pages:
+                            if p != page:
+                                p.close()
+                except:
+                    pass
+                
                 # Next video
                 page.keyboard.press("ArrowDown")
                 time.sleep(2)
