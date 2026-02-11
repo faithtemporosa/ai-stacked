@@ -613,6 +613,15 @@ DASHBOARD_HTML = """
 def index():
     return render_template_string(DASHBOARD_HTML)
 
+@app.route('/api/check-adspower')
+def api_check_adspower():
+    """Check if AdsPower is running"""
+    try:
+        response = requests.get(f"{ADSPOWER_API}/api/v1/user/list?page_size=1", timeout=3)
+        return jsonify({"connected": response.status_code == 200})
+    except:
+        return jsonify({"connected": False})
+
 @app.route('/api/sync-profiles', methods=['POST'])
 def api_sync():
     fetch_adspower_profiles()
