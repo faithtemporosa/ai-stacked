@@ -42,7 +42,7 @@ SHEET_NAMES = ["Bump Connect", "Kollabsy", "Bump Syndicate"]
 
 MIN_DELAY_BETWEEN_COMMENTS = 30
 MAX_DELAY_BETWEEN_COMMENTS = 60
-VIDEOS_PER_PROFILE = 10
+VIDEOS_PER_PROFILE = 100  # Target: 100 videos per profile per day
 
 # =============================================================================
 # GLOBAL STATE
