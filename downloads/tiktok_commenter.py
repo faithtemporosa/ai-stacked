@@ -244,7 +244,13 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
                 log(f"  📹 Video {video_num + 1}/{target_videos}")
                 
                 try:
+                    # Check if login popup appeared
                     current_url = page.url
+                    if "login" in current_url.lower():
+                        log(f"  ⚠ Login page detected - closing browser")
+                        browser.close()
+                        return videos_commented > 0
+                    
                     video_id = f"video_{video_num}_{int(time.time())}"
                     
                     if video_id in commented_videos:
