@@ -452,8 +452,8 @@ def run_automation_thread(profile_ids, sheet_mapping):
     automation_status["total"] = len(profile_ids)
     automation_status["completed"] = []
     automation_status["logs"] = []
-    automation_status["comments_posted"] = 0
-    automation_status["report"] = []
+    # Don't clear report - keep historical data
+    # automation_status["comments_posted"] stays as total count
     
     parallel = settings.get("parallel_browsers", 3)
     
