@@ -374,6 +374,7 @@ def run_automation_thread(profile_ids, sheet_mapping):
     automation_status["completed"] = []
     automation_status["logs"] = []
     automation_status["comments_posted"] = 0
+    automation_status["report"] = []  # Reset report
     
     log(f"{'='*50}")
     log(f"Starting TikTok Commenter for {len(profile_ids)} profiles")
