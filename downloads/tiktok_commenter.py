@@ -382,37 +382,56 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
                         time.sleep(2)
                         continue
                     
-                    # STEP 1: Click comment icon using JavaScript
+                    # STEP 1: Click comment icon using JavaScript (avoid share button!)
                     log(f"    → Opening comments...")
                     
+                    # First close any share dialogs that might be open
+                    page.evaluate('''() => {
+                        const closeBtn = document.querySelector('[class*="Close"], [aria-label="Close"], [aria-label*="schließen" i]');
+                        if (closeBtn) closeBtn.click();
+                    }''')
+                    time.sleep(0.5)
+                    
                     result = page.evaluate('''() => {
-                        // Find comment button
-                        const selectors = [
-                            '[data-e2e="comment-icon"]',
-                            'button[class*="comment" i]',
-                            '[class*="CommentIcon"]',
-                            '[class*="DivCommentIconContainer"]'
-                        ];
+                        // Find comment button specifically - NOT share button
                         
-                        for (let sel of selectors) {
-                            const el = document.querySelector(sel);
-                            if (el) {
-                                el.click();
-                                return {success: true, method: sel};
+                        // Method 1: data-e2e attribute (most reliable)
+                        let btn = document.querySelector('[data-e2e="comment-icon"]');
+                        if (btn) { btn.click(); return {success: true, method: 'data-e2e'}; }
+                        
+                        // Method 2: aria-label with comment in various languages
+                        const commentLabels = ['comment', 'kommentar', 'commenti', 'comentar', 'commenter'];
+                        for (let label of commentLabels) {
+                            btn = document.querySelector('[aria-label*="' + label + '" i]');
+                            if (btn && !btn.closest('[class*="share" i]')) { 
+                                btn.click(); 
+                                return {success: true, method: 'aria-label'}; 
                             }
                         }
                         
-                        // Fallback: find by SVG path
-                        const svgs = document.querySelectorAll('svg');
-                        for (let svg of svgs) {
-                            const parent = svg.closest('button') || svg.parentElement;
-                            if (parent && parent.offsetParent) {
-                                const rect = parent.getBoundingClientRect();
-                                // Comment button is usually on the right side
-                                if (rect.right > window.innerWidth - 200) {
-                                    parent.click();
-                                    return {success: true, method: 'svg-parent'};
-                                }
+                        // Method 3: Find speech bubble icon (comment) vs arrow icon (share)
+                        // Look at the action bar on the right side
+                        const actionItems = document.querySelectorAll('[class*="DivActionItemContainer"], [class*="ActionItem"]');
+                        let itemIndex = 0;
+                        for (let item of actionItems) {
+                            itemIndex++;
+                            // Comment is usually 2nd item (after like), share is usually 4th or 5th
+                            if (itemIndex === 2) {
+                                const clickable = item.querySelector('button, [role="button"]') || item;
+                                clickable.click();
+                                return {success: true, method: 'action-item-2'};
+                            }
+                        }
+                        
+                        // Method 4: Find by looking at sibling structure
+                        const likeBtn = document.querySelector('[data-e2e="like-icon"]');
+                        if (likeBtn) {
+                            const parent = likeBtn.closest('[class*="Container"]') || likeBtn.parentElement;
+                            const nextSibling = parent.nextElementSibling;
+                            if (nextSibling) {
+                                const btn = nextSibling.querySelector('button, [role="button"]') || nextSibling;
+                                btn.click();
+                                return {success: true, method: 'like-sibling'};
                             }
                         }
                         
@@ -423,11 +442,28 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
                         log(f"    ✓ Comments opened ({result.get('method')})")
                     else:
                         log(f"    ⚠ Could not open comments")
+                        page.keyboard.press("Escape")
                         page.keyboard.press("ArrowDown")
                         time.sleep(2)
                         continue
                     
                     time.sleep(2)
+                    
+                    # Check if share dialog opened instead (close it)
+                    share_check = page.evaluate('''() => {
+                        const shareDialog = document.querySelector('[class*="Share"], [class*="share"]');
+                        if (shareDialog && shareDialog.innerText.toLowerCase().includes('copy')) {
+                            const close = document.querySelector('[aria-label="Close"], [class*="Close"]');
+                            if (close) close.click();
+                            return true;
+                        }
+                        return false;
+                    }''')
+                    
+                    if share_check:
+                        log(f"    ⚠ Share dialog opened, trying again...")
+                        time.sleep(1)
+                        continue
                     
                     # STEP 2: Find and click comment input
                     log(f"    → Finding input...")
