@@ -627,19 +627,25 @@ DASHBOARD_HTML = """
         
         <div id="tab-report" style="display:none">
             <div class="card">
-                <div class="card-title"><span>📊 All Comments History</span><span id="rc" style="color:#71717a">0 total</span></div>
-                <div style="display:flex;gap:10px;margin-bottom:16px;">
+                <div class="card-title"><span>📊 All Comments History (All Time)</span><span id="rc" style="color:#71717a">0 total</span></div>
+                <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">
                     <button class="btn btn-primary" onclick="expCSV()">📥 Export CSV</button>
-                    <button class="btn btn-danger" onclick="clrReport()">🗑️ Clear History</button>
+                    <button class="btn btn-secondary" onclick="filterToday()">Today</button>
+                    <button class="btn btn-secondary" onclick="filterWeek()">This Week</button>
+                    <button class="btn btn-secondary" onclick="filterMonth()">This Month</button>
+                    <button class="btn btn-secondary" onclick="filterAll()">All Time</button>
+                    <button class="btn btn-danger" onclick="clrReport()">🗑️ Clear All</button>
                 </div>
+                <div id="filter-info" style="font-size:12px;color:#a78bfa;margin-bottom:10px;">Showing: All time</div>
                 <div style="max-height:400px;overflow:auto">
-                    <table class="report-table"><thead><tr><th>Time</th><th>Profile</th><th>Comment</th><th>Link</th><th>Sheet</th></tr></thead><tbody id="rb"></tbody></table>
+                    <table class="report-table"><thead><tr><th>Date/Time</th><th>Profile</th><th>Comment</th><th>Video</th><th>Sheet</th></tr></thead><tbody id="rb"></tbody></table>
                 </div>
                 <div style="margin-top:16px;padding:12px;background:#27272a;border-radius:8px;">
                     <div style="display:flex;gap:24px;justify-content:center;">
                         <div style="text-align:center"><div style="font-size:24px;font-weight:700;color:#4ade80" id="sum-total">0</div><div style="font-size:11px;color:#71717a">Total Comments</div></div>
-                        <div style="text-align:center"><div style="font-size:24px;font-weight:700;color:#a78bfa" id="sum-profiles">0</div><div style="font-size:11px;color:#71717a">Profiles</div></div>
+                        <div style="text-align:center"><div style="font-size:24px;font-weight:700;color:#a78bfa" id="sum-profiles">0</div><div style="font-size:11px;color:#71717a">Profiles Used</div></div>
                         <div style="text-align:center"><div style="font-size:24px;font-weight:700;color:#fbbf24" id="sum-videos">0</div><div style="font-size:11px;color:#71717a">Videos</div></div>
+                        <div style="text-align:center"><div style="font-size:24px;font-weight:700;color:#f87171" id="sum-today">0</div><div style="font-size:11px;color:#71717a">Today</div></div>
                     </div>
                 </div>
             </div>
