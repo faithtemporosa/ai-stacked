@@ -463,9 +463,10 @@ def run_automation_thread(profile_ids, sheet_mapping):
     parallel = settings.get("parallel_browsers", 3)
     
     log(f"{'='*50}")
-    log(f"Starting for {len(profile_ids)} profiles")
+    log(f"Starting for {len(profile_ids)} profiles (Target: 25/day)")
     log(f"Running {parallel} browsers simultaneously")
     log(f"Target: {settings['videos_per_profile']} videos per profile")
+    log(f"Total target: {len(profile_ids) * settings['videos_per_profile']} comments")
     log(f"{'='*50}")
     
     # Load ALL comments from ALL sheets
