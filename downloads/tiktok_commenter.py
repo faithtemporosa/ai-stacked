@@ -153,10 +153,17 @@ def close_browser(profile_id):
         pass
 
 def get_random_comment(sheet_name):
-    comments = comments_cache.get(sheet_name, [])
-    if comments:
-        return random.choice(comments)
-    return None
+    """Get a random comment from ALL 3 sheets combined"""
+    all_comments = []
+    for sn in SHEET_NAMES:
+        comments = comments_cache.get(sn, [])
+        for c in comments:
+            all_comments.append((c, sn))
+    
+    if all_comments:
+        comment, from_sheet = random.choice(all_comments)
+        return comment, from_sheet
+    return None, None
 
 def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
     """Connect to browser and comment on TikTok videos using JS injection"""
