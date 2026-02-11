@@ -322,6 +322,16 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
                         videos_commented += 1
                         automation_status["comments_posted"] += 1
                         
+                        # Add to report
+                        automation_status["report"].append({
+                            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "profile": profile_name,
+                            "video_url": current_url,
+                            "video_id": video_id,
+                            "comment": comment_text,
+                            "sheet": sheet_name
+                        })
+                        
                         log(f"    ✓ Comment posted!")
                         
                         # Close comment panel
