@@ -467,12 +467,16 @@ def run_automation_thread(profile_ids, sheet_mapping):
     log(f"{'='*50}")
     log(f"Starting for {len(profile_ids)} profiles")
     log(f"Running {parallel} browsers simultaneously")
+    log(f"Target: {settings['videos_per_profile']} videos per profile")
     log(f"{'='*50}")
     
-    # Load comments
-    for sheet in set(sheet_mapping.values()):
-        if sheet not in comments_cache:
-            fetch_google_sheet_comments(sheet)
+    # Load ALL comments from ALL sheets
+    log(f"Loading comments from all sheets...")
+    total_comments = 0
+    for sheet in SHEET_NAMES:
+        comments = fetch_google_sheet_comments(sheet)
+        total_comments += len(comments)
+    log(f"✓ Total comments loaded: {total_comments}")
     
     # Run profiles in parallel batches
     with ThreadPoolExecutor(max_workers=parallel) as executor:
