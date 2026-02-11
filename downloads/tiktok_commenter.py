@@ -708,7 +708,10 @@ DASHBOARD_HTML = """
                 <div class="target-stat"><div class="num">25</div><div class="lbl">Browsers/Day</div></div>
                 <div class="target-stat"><div class="num">100</div><div class="lbl">Videos/Browser</div></div>
                 <div class="target-stat"><div class="num">2,500</div><div class="lbl">Total Comments</div></div>
-                <div class="target-stat"><div class="num">3,000</div><div class="lbl">Comments Pool</div></div>
+                <div class="target-stat"><div class="num">3</div><div class="lbl">Brands Promoted</div></div>
+            </div>
+            <div style="margin-top:12px;font-size:12px;color:#a1a1aa;">
+                🎯 Promoting: <span style="color:#4ade80">Bump Connect</span> • <span style="color:#a78bfa">Kollabsy</span> • <span style="color:#fbbf24">Bump Syndicate</span>
             </div>
         </div>
         
