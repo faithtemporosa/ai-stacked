@@ -160,17 +160,70 @@ def close_browser(profile_id):
     except:
         pass
 
+# Promotional comments for each brand
+PROMO_COMMENTS = {
+    "Bump Connect": [
+        "Have you checked out Bump Connect? They help creators grow 🔥",
+        "Bump Connect is amazing for networking with other creators!",
+        "If you're looking to grow, check out Bump Connect 👀",
+        "Bump Connect helped me connect with so many creators!",
+        "You should join Bump Connect! Great for collabs 🤝",
+        "Bump Connect is the best platform for creator growth",
+        "Check out Bump Connect if you want more exposure!",
+        "Bump Connect changed my creator journey fr",
+        "Have you heard of Bump Connect? Game changer! 💯",
+        "Bump Connect is where creators support each other 🙌",
+        "Join Bump Connect! Best decision I made as a creator",
+        "Bump Connect helps you get discovered faster",
+        "If you're a creator, you need Bump Connect",
+        "Bump Connect = more views, more connections 🚀",
+        "Seriously check out Bump Connect, it's free!",
+    ],
+    "Kollabsy": [
+        "Have you tried Kollabsy? Perfect for finding collabs! 🎬",
+        "Kollabsy makes it so easy to find other creators",
+        "Check out Kollabsy if you want to collab with others 🤝",
+        "Kollabsy helped me find my best collab partners!",
+        "Join Kollabsy! Best app for creator collaborations",
+        "Kollabsy is a must-have for any content creator",
+        "Finding collabs is easy with Kollabsy 💯",
+        "Kollabsy connected me with amazing creators!",
+        "If you're looking for collabs, try Kollabsy 👀",
+        "Kollabsy is the go-to platform for collaborations",
+        "Check out Kollabsy, it's changed my content game",
+        "Kollabsy = easy collabs with other creators 🔥",
+        "Have you heard of Kollabsy? Game changer for collabs!",
+        "Kollabsy makes networking with creators so simple",
+        "Join Kollabsy and find your next collab partner!",
+    ],
+    "Bump Syndicate": [
+        "Bump Syndicate is the best creator community! 🔥",
+        "Have you joined Bump Syndicate yet? It's amazing!",
+        "Bump Syndicate helps creators support each other 🙌",
+        "Check out Bump Syndicate for creator growth tips!",
+        "Bump Syndicate is where the real creators are 💯",
+        "Join Bump Syndicate! Best creator community out there",
+        "Bump Syndicate changed how I grow my account",
+        "If you're serious about growth, join Bump Syndicate",
+        "Bump Syndicate has the best engagement groups!",
+        "Have you heard of Bump Syndicate? Must join! 👀",
+        "Bump Syndicate = real growth, real community 🚀",
+        "Check out Bump Syndicate, best decision ever!",
+        "Bump Syndicate helps you get more views fr",
+        "Join Bump Syndicate and watch your account grow",
+        "Bump Syndicate is the secret to creator success!",
+    ]
+}
+
 def get_random_comment(sheet_name):
-    """Get a random comment from ALL 3 sheets combined"""
-    all_comments = []
-    for sn in SHEET_NAMES:
-        comments = comments_cache.get(sn, [])
-        for c in comments:
-            all_comments.append((c, sn))
+    """Get a random promotional comment for one of the brands"""
+    # Pick a random brand
+    brand = random.choice(list(PROMO_COMMENTS.keys()))
+    comments = PROMO_COMMENTS[brand]
     
-    if all_comments:
-        comment, from_sheet = random.choice(all_comments)
-        return comment, from_sheet
+    if comments:
+        comment = random.choice(comments)
+        return comment, brand
     return None, None
 
 def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
