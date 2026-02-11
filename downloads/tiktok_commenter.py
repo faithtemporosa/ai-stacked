@@ -206,10 +206,27 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
             current_url = page.url
             log(f"  📍 URL: {current_url}")
             
-            if "login" in current_url.lower():
-                log(f"  ⚠ Not logged in!")
+            # Check if redirected to login
+            if "login" in current_url.lower() or "signup" in current_url.lower():
+                log(f"  ⚠ NOT LOGGED IN - Closing browser automatically")
                 browser.close()
                 return False
+            
+            # Also check page content for login prompts
+            try:
+                login_check = page.evaluate('''() => {
+                    const text = document.body.innerText.toLowerCase();
+                    if (text.includes('log in') && text.includes('sign up')) return true;
+                    if (document.querySelector('[data-e2e="login-button"]')) return true;
+                    if (document.querySelector('a[href*="login"]')) return true;
+                    return false;
+                }''')
+                if login_check:
+                    log(f"  ⚠ LOGIN REQUIRED - Closing browser automatically")
+                    browser.close()
+                    return False
+            except:
+                pass
             
             # Wait for video
             try:
