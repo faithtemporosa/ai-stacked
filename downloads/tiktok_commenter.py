@@ -726,7 +726,6 @@ DASHBOARD_HTML = """
                     <div class="card-title"><span>Profiles (Select 25)</span><span id="pc" style="color:#71717a">0</span></div>
                     <div style="display:flex;gap:8px;margin-bottom:12px;">
                         <button class="btn btn-secondary" onclick="sync()">🔄 Sync</button>
-                        <button class="btn btn-secondary" onclick="loadC()">📄 Comments</button>
                         <button class="btn btn-secondary" onclick="selAll()">Select All 25</button>
                     </div>
                     <div class="profile-list" id="pl"></div>
