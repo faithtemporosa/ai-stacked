@@ -460,11 +460,11 @@ def run_automation_thread(profile_ids, sheet_mapping):
     # Don't clear report - keep historical data
     # automation_status["comments_posted"] stays as total count
     
-    parallel = settings.get("parallel_browsers", 3)
+    parallel = 2  # Always run exactly 2 browsers at a time
     
     log(f"{'='*50}")
     log(f"Starting for {len(profile_ids)} profiles (Target: 25/day)")
-    log(f"Running {parallel} browsers simultaneously")
+    log(f"Running 2 browsers at a time until all {len(profile_ids)} finished")
     log(f"Target: {settings['videos_per_profile']} videos per profile")
     log(f"Total target: {len(profile_ids) * settings['videos_per_profile']} comments")
     log(f"{'='*50}")
