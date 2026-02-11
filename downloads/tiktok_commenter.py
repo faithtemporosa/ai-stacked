@@ -194,10 +194,20 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
             
             log(f"  ✓ Connected")
             
-            # Go to TikTok
-            log(f"  → Opening TikTok...")
+            # Go to TikTok - either For You or target hashtag
+            target_hashtag = settings.get("target_hashtag", "").strip()
+            
+            if target_hashtag:
+                # Clean hashtag (remove # if present)
+                hashtag = target_hashtag.replace("#", "").strip()
+                tiktok_url = f"https://www.tiktok.com/tag/{hashtag}"
+                log(f"  → Opening TikTok #{hashtag}...")
+            else:
+                tiktok_url = "https://www.tiktok.com/foryou"
+                log(f"  → Opening TikTok For You...")
+            
             try:
-                page.goto("https://www.tiktok.com/foryou", wait_until="domcontentloaded", timeout=90000)
+                page.goto(tiktok_url, wait_until="domcontentloaded", timeout=90000)
             except Exception as e:
                 log(f"  ⚠ Slow load, continuing anyway...")
             
