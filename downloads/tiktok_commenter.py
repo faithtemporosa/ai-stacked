@@ -58,7 +58,7 @@ settings = {
     "min_delay": MIN_DELAY_BETWEEN_COMMENTS,
     "max_delay": MAX_DELAY_BETWEEN_COMMENTS,
     "videos_per_profile": VIDEOS_PER_PROFILE,
-    "parallel_browsers": 2,  # Start with 2, increase if your Mac handles it
+    "parallel_browsers": 2,  # Fixed at 2 browsers at a time
 }
 
 automation_status = {
