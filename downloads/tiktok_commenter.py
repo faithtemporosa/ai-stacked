@@ -342,6 +342,38 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
                         browser.close()
                         return videos_commented > 0
                     
+                    # Check if on hashtag/search page (grid view) - need to click video first
+                    if "/tag/" in current_url or "/search" in current_url:
+                        log(f"    → Grid view detected, clicking video...")
+                        
+                        # Click on a video in the grid
+                        clicked_video = page.evaluate('''() => {
+                            // Find video thumbnails/cards in grid
+                            const videos = document.querySelectorAll('[data-e2e="search-card-desc"], [class*="DivItemContainer"], [class*="video-feed-item"], a[href*="/video/"]');
+                            for (let v of videos) {
+                                if (v.offsetParent) {
+                                    v.click();
+                                    return true;
+                                }
+                            }
+                            // Try clicking any video element
+                            const anyVideo = document.querySelector('video');
+                            if (anyVideo) {
+                                anyVideo.click();
+                                return true;
+                            }
+                            return false;
+                        }''')
+                        
+                        if clicked_video:
+                            log(f"    ✓ Opened video")
+                            time.sleep(3)
+                        else:
+                            log(f"    ⚠ Could not click video, scrolling...")
+                            page.keyboard.press("ArrowDown")
+                            time.sleep(2)
+                            continue
+                    
                     video_id = f"video_{video_num}_{int(time.time())}"
                     
                     if video_id in commented_videos:
