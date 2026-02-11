@@ -191,6 +191,20 @@ async def download_dashboard():
         )
     raise HTTPException(status_code=404, detail="Dashboard file not found")
 
+# Download TikTok commenter
+@api_router.get("/download-tiktok-commenter")
+async def download_tiktok_commenter():
+    """Download the TikTok direct commenter app"""
+    commenter_path = Path(__file__).parent.parent / "downloads" / "tiktok_commenter.py"
+    if commenter_path.exists():
+        content = commenter_path.read_text()
+        return StreamingResponse(
+            io.BytesIO(content.encode()),
+            media_type="text/x-python",
+            headers={"Content-Disposition": "attachment; filename=tiktok_commenter.py"}
+        )
+    raise HTTPException(status_code=404, detail="TikTok commenter file not found")
+
 # Script generation endpoint
 @api_router.get("/generate-script")
 async def generate_automation_script():
