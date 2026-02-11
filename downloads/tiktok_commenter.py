@@ -373,6 +373,9 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
                         "sheet": sheet_name
                     })
                     
+                    # Save to file after each comment
+                    save_report_history()
+                    
                     log(f"    ✓ SUCCESS: {comment_text[:40]}...")
                     
                     # Close comments
