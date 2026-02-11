@@ -52,6 +52,8 @@ profiles = []
 comments_cache = {}
 commented_videos = set()
 
+REPORT_FILE = "tiktok_comments_history.json"
+
 settings = {
     "min_delay": MIN_DELAY_BETWEEN_COMMENTS,
     "max_delay": MAX_DELAY_BETWEEN_COMMENTS,
@@ -69,6 +71,28 @@ automation_status = {
     "comments_posted": 0,
     "report": []
 }
+
+def load_report_history():
+    """Load past reports from file"""
+    global automation_status
+    try:
+        with open(REPORT_FILE, 'r') as f:
+            data = json.load(f)
+            automation_status["report"] = data.get("report", [])
+            automation_status["comments_posted"] = len(automation_status["report"])
+            print(f"✓ Loaded {len(automation_status['report'])} past comments from history")
+    except FileNotFoundError:
+        print("No history file found, starting fresh")
+    except Exception as e:
+        print(f"Error loading history: {e}")
+
+def save_report_history():
+    """Save reports to file"""
+    try:
+        with open(REPORT_FILE, 'w') as f:
+            json.dump({"report": automation_status["report"]}, f, indent=2)
+    except Exception as e:
+        print(f"Error saving history: {e}")
 
 def log(message):
     timestamp = datetime.now().strftime("%H:%M:%S")
