@@ -73,24 +73,31 @@ automation_status = {
 }
 
 def load_report_history():
-    """Load past reports from file"""
+    """Load past reports from file on startup"""
     global automation_status
     try:
         with open(REPORT_FILE, 'r') as f:
             data = json.load(f)
             automation_status["report"] = data.get("report", [])
             automation_status["comments_posted"] = len(automation_status["report"])
-            print(f"✓ Loaded {len(automation_status['report'])} past comments from history")
+            print(f"✓ Loaded {len(automation_status['report'])} comments from history")
     except FileNotFoundError:
         print("No history file found, starting fresh")
+        automation_status["report"] = []
+        automation_status["comments_posted"] = 0
     except Exception as e:
         print(f"Error loading history: {e}")
+        automation_status["report"] = []
+        automation_status["comments_posted"] = 0
 
 def save_report_history():
-    """Save reports to file"""
+    """Save ALL reports to file for persistence"""
     try:
         with open(REPORT_FILE, 'w') as f:
-            json.dump({"report": automation_status["report"]}, f, indent=2)
+            json.dump({
+                "report": automation_status["report"],
+                "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }, f, indent=2)
     except Exception as e:
         print(f"Error saving history: {e}")
 
