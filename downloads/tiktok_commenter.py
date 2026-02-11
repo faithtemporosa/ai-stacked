@@ -466,11 +466,12 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
                 except Exception as e:
                     log(f"    ✗ Error: {e}")
                 
-                # Close any extra tabs that might have opened
+                # Close any extra TikTok tabs that might have opened (keep AdsPower tab)
                 try:
                     current_pages = context.pages
-                    if len(current_pages) > 1:
-                        for p in current_pages:
+                    tiktok_pages = [p for p in current_pages if "tiktok" in p.url.lower()]
+                    if len(tiktok_pages) > 1:
+                        for p in tiktok_pages:
                             if p != page:
                                 p.close()
                 except:
