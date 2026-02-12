@@ -655,8 +655,36 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
                 except:
                     pass
                 
-                # Next video
-                page.keyboard.press("ArrowDown")
+                # Navigate to next video
+                current_url = page.url
+                if "/video/" in current_url:
+                    # In video view - go back to grid or scroll to next
+                    log(f"    → Going to next video...")
+                    page.keyboard.press("Escape")  # Close any dialogs
+                    time.sleep(0.5)
+                    
+                    # Check if we should go back to hashtag grid
+                    target_hashtag = settings.get("target_hashtag", "").strip()
+                    if target_hashtag:
+                        # Go back to hashtag page to pick another video
+                        page.keyboard.press("Escape")  # Close video
+                        time.sleep(1)
+                        # If still on video page, navigate back
+                        if "/video/" in page.url:
+                            hashtag = target_hashtag.replace("#", "").strip()
+                            page.goto(f"https://www.tiktok.com/tag/{hashtag}", wait_until="domcontentloaded", timeout=30000)
+                            time.sleep(3)
+                            # Scroll to load more videos
+                            for _ in range(video_num // 3 + 1):
+                                page.keyboard.press("ArrowDown")
+                                time.sleep(0.3)
+                    else:
+                        # On For You page - just scroll down
+                        page.keyboard.press("ArrowDown")
+                else:
+                    # Still on grid view
+                    page.keyboard.press("ArrowDown")
+                
                 time.sleep(2)
             
             log(f"  ✓ Done: {videos_commented} comments")
