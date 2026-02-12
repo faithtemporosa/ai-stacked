@@ -343,32 +343,73 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
                     
                     # Check if on hashtag/search page (grid view) - need to click video first
                     if "/tag/" in current_url or "/search" in current_url:
-                        log(f"    → Grid view detected, clicking video...")
+                        log(f"    → Grid view - clicking video to open...")
+                        
+                        # Scroll down a bit to load videos
+                        page.evaluate('window.scrollBy(0, 300)')
+                        time.sleep(1)
                         
                         # Click on a video in the grid
-                        clicked_video = page.evaluate('''() => {
-                            // Find video thumbnails/cards in grid
-                            const videos = document.querySelectorAll('[data-e2e="search-card-desc"], [class*="DivItemContainer"], [class*="video-feed-item"], a[href*="/video/"]');
-                            for (let v of videos) {
-                                if (v.offsetParent) {
-                                    v.click();
-                                    return true;
+                        clicked_video = page.evaluate('''(videoIndex) => {
+                            // Find all video cards/thumbnails
+                            const videoSelectors = [
+                                '[data-e2e="search_top-item"]',
+                                '[data-e2e="search-card-user-link"]',
+                                '[class*="DivItemCardContainer"]',
+                                '[class*="ItemCard"]',
+                                '[class*="video-feed-item"]',
+                                '[class*="DivWrapper"]',
+                                'a[href*="/video/"]'
+                            ];
+                            
+                            for (let selector of videoSelectors) {
+                                const videos = document.querySelectorAll(selector);
+                                if (videos.length > videoIndex) {
+                                    // Click on the video at the given index
+                                    const video = videos[videoIndex];
+                                    if (video) {
+                                        video.click();
+                                        return {success: true, method: selector, count: videos.length};
+                                    }
                                 }
                             }
-                            // Try clicking any video element
-                            const anyVideo = document.querySelector('video');
-                            if (anyVideo) {
-                                anyVideo.click();
-                                return true;
+                            
+                            // Fallback: click any video thumbnail
+                            const allLinks = document.querySelectorAll('a[href*="/video/"]');
+                            if (allLinks.length > videoIndex) {
+                                allLinks[videoIndex].click();
+                                return {success: true, method: 'video-link', count: allLinks.length};
                             }
-                            return false;
-                        }''')
+                            
+                            // Last resort: click the video element itself
+                            const videoElements = document.querySelectorAll('video');
+                            if (videoElements.length > 0) {
+                                videoElements[0].click();
+                                return {success: true, method: 'video-element'};
+                            }
+                            
+                            return {success: false, count: 0};
+                        }''', video_num % 10)  # Cycle through first 10 videos
                         
-                        if clicked_video:
-                            log(f"    ✓ Opened video")
-                            time.sleep(3)
+                        if clicked_video and clicked_video.get('success'):
+                            log(f"    ✓ Opened video ({clicked_video.get('method')}, {clicked_video.get('count')} found)")
+                            time.sleep(4)  # Wait for video to load in full view
+                            
+                            # Check if video opened (URL should change to /video/)
+                            new_url = page.url
+                            if "/video/" not in new_url:
+                                log(f"    ⚠ Video didn't open, trying direct navigation...")
+                                # Try to find and navigate to video URL
+                                video_url = page.evaluate('''() => {
+                                    const link = document.querySelector('a[href*="/video/"]');
+                                    return link ? link.href : null;
+                                }''')
+                                if video_url:
+                                    page.goto(video_url, timeout=30000)
+                                    time.sleep(3)
                         else:
-                            log(f"    ⚠ Could not click video, scrolling...")
+                            log(f"    ⚠ Could not click video, scrolling to load more...")
+                            page.keyboard.press("ArrowDown")
                             page.keyboard.press("ArrowDown")
                             time.sleep(2)
                             continue
