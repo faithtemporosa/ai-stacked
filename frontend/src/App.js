@@ -70,6 +70,17 @@ function App() {
     }
   }, [filter]);
 
+  const fetchLogs = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API}/logs`);
+      setLogs(res.data.logs || []);
+      setAutomationStatus(res.data.status || null);
+      setLogsUpdatedAt(res.data.updated_at);
+    } catch (err) {
+      console.error("Error fetching logs:", err);
+    }
+  }, []);
+
   const fetchAll = useCallback(async () => {
     setLoading(true);
     await Promise.all([fetchStats(), fetchReports()]);
