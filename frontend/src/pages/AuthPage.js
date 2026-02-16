@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { MessageCircle, Mail, Lock, User, Users, LogIn, UserPlus, AlertCircle } from 'lucide-react';
 
-export default function AuthPage() {
+export default function AuthPage({ onSuccess }) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,6 +24,7 @@ export default function AuthPage() {
       } else {
         await register(email, password, name, teamName);
       }
+      if (onSuccess) onSuccess();
     } catch (err) {
       setError(err.response?.data?.detail || 'Something went wrong');
     } finally {
