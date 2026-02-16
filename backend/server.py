@@ -118,6 +118,106 @@ class ReportStats(BaseModel):
     unique_videos: int
     by_brand: Dict[str, int]
 
+# ==============================================================================
+# AUTHENTICATION MODELS
+# ==============================================================================
+
+class UserCreate(BaseModel):
+    """User registration model"""
+    email: str
+    password: str
+    name: str
+    team_name: Optional[str] = None
+
+class UserLogin(BaseModel):
+    """User login model"""
+    email: str
+    password: str
+
+class UserResponse(BaseModel):
+    """User response model (no password)"""
+    id: str
+    email: str
+    name: str
+    team_id: Optional[str] = None
+    team_name: Optional[str] = None
+    role: str = "member"
+    created_at: str
+
+class TokenResponse(BaseModel):
+    """JWT token response"""
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+
+class TeamCreate(BaseModel):
+    """Team creation model"""
+    name: str
+
+class TeamInvite(BaseModel):
+    """Team invite model"""
+    email: str
+    role: str = "viewer"  # viewer, member, admin
+
+# ==============================================================================
+# AUTHENTICATION HELPERS
+# ==============================================================================
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password: str) -> str:
+    return pwd_context.hash(password)
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Optional[dict]:
+    """Get current user from JWT token (optional auth)"""
+    if not credentials:
+        return None
+    
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            return None
+        
+        user = await db.users.find_one({"id": user_id}, {"_id": 0, "password": 0})
+        return user
+    except JWTError:
+        return None
+
+async def require_auth(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
+    """Require authentication - raises 401 if not authenticated"""
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        
+        user = await db.users.find_one({"id": user_id}, {"_id": 0, "password": 0})
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        
+        return user
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
 # Google Sheets Functions
 async def fetch_sheet_data(sheet_name: str) -> List[Comment]:
     """Fetch comments from a specific sheet in Google Sheets"""
