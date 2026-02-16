@@ -783,379 +783,110 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
                 page.wait_for_selector('video', timeout=15000)
                 log(f"  ✓ TikTok loaded")
             except:
-                log(f"  ⚠ No video found")
+                log(f"  ⚠ No video found, continuing anyway...")
             
-            # Process videos
+            # Process videos using improved retry logic
             for video_num in range(target_videos):
                 if not automation_status["running"]:
-                    log(f"  ⏹ Stopped")
+                    log(f"  ⏹ Stopped by user")
                     break
                 
-                log(f"  📹 Video {video_num + 1}/{target_videos}")
+                # Check consecutive failures
+                if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+                    log(f"  ⚠ Too many consecutive failures ({MAX_CONSECUTIVE_FAILURES}), stopping profile")
+                    break
                 
+                # Process video with retry
+                success, result = process_single_video_with_retry(page, video_num, profile_name, target_videos)
+                
+                if success:
+                    consecutive_failures = 0
+                    
+                    if isinstance(result, dict):
+                        # Comment was posted successfully
+                        videos_commented += 1
+                        automation_status["comments_posted"] += 1
+                        
+                        report_entry = {
+                            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "profile": profile_name,
+                            "video_url": result.get("video_url", ""),
+                            "video_id": result.get("video_id", ""),
+                            "comment": result.get("comment", ""),
+                            "sheet": result.get("sheet", "Unknown")
+                        }
+                        
+                        automation_status["report"].append(report_entry)
+                        save_report_history()
+                        
+                        # Send to cloud
+                        try:
+                            threading.Thread(target=send_to_cloud, args=(report_entry,), daemon=True).start()
+                        except:
+                            pass
+                        
+                        log(f"    ✓ SUCCESS: {result.get('comment', '')[:40]}...")
+                        
+                        # Close comments and wait
+                        page.keyboard.press("Escape")
+                        time.sleep(1)
+                        
+                        delay = random.randint(settings["min_delay"], settings["max_delay"])
+                        log(f"    ⏳ Waiting {delay}s...")
+                        for _ in range(delay):
+                            if not automation_status["running"]:
+                                break
+                            time.sleep(1)
+                else:
+                    consecutive_failures += 1
+                    if result == "login_required":
+                        log(f"  ⚠ Profile not logged in, stopping")
+                        break
+                    log(f"    ⚠ Failed: {result}")
+                
+                # Navigate to next video
                 try:
-                    # Check if login popup appeared
                     current_url = page.url
-                    if "login" in current_url.lower():
-                        log(f"  ⚠ Login page detected - closing browser")
-                        browser.close()
-                        return videos_commented > 0
+                    target_hashtag = settings.get("target_hashtag", "").strip()
                     
-                    # Check if on hashtag/search page (grid view) - need to click video first
-                    if "/tag/" in current_url or "/search" in current_url:
-                        log(f"    → Grid view - clicking video to open...")
+                    if "/video/" in current_url:
+                        page.keyboard.press("Escape")
+                        time.sleep(0.5)
                         
-                        # Scroll down a bit to load videos
-                        page.evaluate('window.scrollBy(0, 300)')
-                        time.sleep(1)
-                        
-                        # Click on a video in the grid
-                        clicked_video = page.evaluate('''(videoIndex) => {
-                            // Find all video cards/thumbnails
-                            const videoSelectors = [
-                                '[data-e2e="search_top-item"]',
-                                '[data-e2e="search-card-user-link"]',
-                                '[class*="DivItemCardContainer"]',
-                                '[class*="ItemCard"]',
-                                '[class*="video-feed-item"]',
-                                '[class*="DivWrapper"]',
-                                'a[href*="/video/"]'
-                            ];
-                            
-                            for (let selector of videoSelectors) {
-                                const videos = document.querySelectorAll(selector);
-                                if (videos.length > videoIndex) {
-                                    // Click on the video at the given index
-                                    const video = videos[videoIndex];
-                                    if (video) {
-                                        video.click();
-                                        return {success: true, method: selector, count: videos.length};
-                                    }
-                                }
-                            }
-                            
-                            // Fallback: click any video thumbnail
-                            const allLinks = document.querySelectorAll('a[href*="/video/"]');
-                            if (allLinks.length > videoIndex) {
-                                allLinks[videoIndex].click();
-                                return {success: true, method: 'video-link', count: allLinks.length};
-                            }
-                            
-                            // Last resort: click the video element itself
-                            const videoElements = document.querySelectorAll('video');
-                            if (videoElements.length > 0) {
-                                videoElements[0].click();
-                                return {success: true, method: 'video-element'};
-                            }
-                            
-                            return {success: false, count: 0};
-                        }''', video_num % 10)  # Cycle through first 10 videos
-                        
-                        if clicked_video and clicked_video.get('success'):
-                            log(f"    ✓ Opened video ({clicked_video.get('method')}, {clicked_video.get('count')} found)")
-                            time.sleep(4)  # Wait for video to load in full view
-                            
-                            # Check if video opened (URL should change to /video/)
-                            new_url = page.url
-                            if "/video/" not in new_url:
-                                log(f"    ⚠ Video didn't open, trying direct navigation...")
-                                # Try to find and navigate to video URL
-                                video_url = page.evaluate('''() => {
-                                    const link = document.querySelector('a[href*="/video/"]');
-                                    return link ? link.href : null;
-                                }''')
-                                if video_url:
-                                    page.goto(video_url, timeout=30000)
+                        if target_hashtag:
+                            # Go back to hashtag grid
+                            if "/video/" in page.url:
+                                hashtag = target_hashtag.replace("#", "").strip()
+                                try:
+                                    page.goto(f"https://www.tiktok.com/tag/{hashtag}", wait_until="domcontentloaded", timeout=30000)
                                     time.sleep(3)
+                                    # Scroll to load more
+                                    for _ in range(min(video_num // 3 + 1, 5)):
+                                        page.keyboard.press("ArrowDown")
+                                        time.sleep(0.3)
+                                except:
+                                    pass
                         else:
-                            log(f"    ⚠ Could not click video, scrolling to load more...")
                             page.keyboard.press("ArrowDown")
-                            page.keyboard.press("ArrowDown")
-                            time.sleep(2)
-                            continue
-                    
-                    video_id = f"video_{video_num}_{int(time.time())}"
-                    
-                    if video_id in commented_videos:
-                        log(f"    ⏭ Skip")
-                        page.keyboard.press("ArrowDown")
-                        time.sleep(2)
-                        continue
-                    
-                    # STEP 1: Click comment icon using JavaScript (avoid share button!)
-                    log(f"    → Opening comments...")
-                    
-                    # First close any share dialogs that might be open
-                    page.evaluate('''() => {
-                        const closeBtn = document.querySelector('[class*="Close"], [aria-label="Close"], [aria-label*="schließen" i]');
-                        if (closeBtn) closeBtn.click();
-                    }''')
-                    time.sleep(0.5)
-                    
-                    result = page.evaluate('''() => {
-                        // Find comment button specifically - NOT share button
-                        
-                        // Method 1: data-e2e attribute (most reliable)
-                        let btn = document.querySelector('[data-e2e="comment-icon"]');
-                        if (btn) { btn.click(); return {success: true, method: 'data-e2e'}; }
-                        
-                        // Method 2: aria-label with comment in various languages
-                        const commentLabels = ['comment', 'kommentar', 'commenti', 'comentar', 'commenter'];
-                        for (let label of commentLabels) {
-                            btn = document.querySelector('[aria-label*="' + label + '" i]');
-                            if (btn && !btn.closest('[class*="share" i]')) { 
-                                btn.click(); 
-                                return {success: true, method: 'aria-label'}; 
-                            }
-                        }
-                        
-                        // Method 3: Find speech bubble icon (comment) vs arrow icon (share)
-                        // Look at the action bar on the right side
-                        const actionItems = document.querySelectorAll('[class*="DivActionItemContainer"], [class*="ActionItem"]');
-                        let itemIndex = 0;
-                        for (let item of actionItems) {
-                            itemIndex++;
-                            // Comment is usually 2nd item (after like), share is usually 4th or 5th
-                            if (itemIndex === 2) {
-                                const clickable = item.querySelector('button, [role="button"]') || item;
-                                clickable.click();
-                                return {success: true, method: 'action-item-2'};
-                            }
-                        }
-                        
-                        // Method 4: Find by looking at sibling structure
-                        const likeBtn = document.querySelector('[data-e2e="like-icon"]');
-                        if (likeBtn) {
-                            const parent = likeBtn.closest('[class*="Container"]') || likeBtn.parentElement;
-                            const nextSibling = parent.nextElementSibling;
-                            if (nextSibling) {
-                                const btn = nextSibling.querySelector('button, [role="button"]') || nextSibling;
-                                btn.click();
-                                return {success: true, method: 'like-sibling'};
-                            }
-                        }
-                        
-                        return {success: false};
-                    }''')
-                    
-                    if result.get('success'):
-                        log(f"    ✓ Comments opened ({result.get('method')})")
                     else:
-                        log(f"    ⚠ Could not open comments")
-                        page.keyboard.press("Escape")
                         page.keyboard.press("ArrowDown")
-                        time.sleep(2)
-                        continue
                     
-                    time.sleep(2)
-                    
-                    # Check if share dialog opened instead (close it)
-                    share_check = page.evaluate('''() => {
-                        const shareDialog = document.querySelector('[class*="Share"], [class*="share"]');
-                        if (shareDialog && shareDialog.innerText.toLowerCase().includes('copy')) {
-                            const close = document.querySelector('[aria-label="Close"], [class*="Close"]');
-                            if (close) close.click();
-                            return true;
-                        }
-                        return false;
-                    }''')
-                    
-                    if share_check:
-                        log(f"    ⚠ Share dialog opened, trying again...")
-                        time.sleep(1)
-                        continue
-                    
-                    # STEP 2: Find and click comment input
-                    log(f"    → Finding input...")
-                    
-                    result = page.evaluate('''() => {
-                        // Find comment input - look for the input area at bottom of comment section
-                        const selectors = [
-                            '[data-e2e="comment-input"]',
-                            '[placeholder*="commento" i]',
-                            '[placeholder*="comment" i]',
-                            '[placeholder*="Aggiungi" i]',
-                            '[placeholder*="Add" i]',
-                            '[class*="CommentInput"]',
-                            '[class*="DivInputContainer"] [contenteditable="true"]',
-                            'div[contenteditable="true"]'
-                        ];
-                        
-                        for (let sel of selectors) {
-                            const el = document.querySelector(sel);
-                            if (el && el.offsetParent) {
-                                el.click();
-                                el.focus();
-                                return {success: true, method: sel};
-                            }
-                        }
-                        
-                        // Try finding by text content
-                        const allDivs = document.querySelectorAll('div[contenteditable], input, textarea');
-                        for (let div of allDivs) {
-                            const placeholder = div.getAttribute('placeholder') || div.innerText || '';
-                            if (placeholder.toLowerCase().includes('comment') || 
-                                placeholder.toLowerCase().includes('commento') ||
-                                placeholder.toLowerCase().includes('aggiungi')) {
-                                div.click();
-                                div.focus();
-                                return {success: true, method: 'text-search'};
-                            }
-                        }
-                        
-                        return {success: false};
-                    }''')
-                    
-                    if result.get('success'):
-                        log(f"    ✓ Input found ({result.get('method')})")
-                    else:
-                        log(f"    ⚠ Input not found")
-                        page.keyboard.press("Escape")
-                        page.keyboard.press("ArrowDown")
-                        time.sleep(2)
-                        continue
-                    
-                    time.sleep(0.5)
-                    
-                    # Get comment from ALL sheets combined
-                    comment_text, from_sheet = get_random_comment(sheet_name)
-                    if not comment_text:
-                        log(f"    ⚠ No comments loaded")
-                        continue
-                    
-                    # STEP 3: Type comment
-                    log(f"    → Typing ({from_sheet})...")
-                    page.keyboard.type(comment_text, delay=50)
                     time.sleep(1)
-                    
-                    # STEP 4: Post comment
-                    log(f"    → Posting...")
-                    
-                    result = page.evaluate('''() => {
-                        // Find post button
-                        const selectors = [
-                            '[data-e2e="comment-post"]',
-                            '[class*="PostButton"]',
-                            '[class*="DivPostButton"]'
-                        ];
-                        
-                        for (let sel of selectors) {
-                            const el = document.querySelector(sel);
-                            if (el && el.offsetParent) {
-                                el.click();
-                                return {success: true, method: sel};
-                            }
-                        }
-                        
-                        // Find by text content
-                        const elements = document.querySelectorAll('button, span, div');
-                        const postWords = ['post', 'pubblica', 'publicar', 'publier', 'posten', 'enviar', 'отправить', '发布', '게시'];
-                        
-                        for (let el of elements) {
-                            const text = el.textContent.toLowerCase().trim();
-                            if (postWords.includes(text) && el.offsetParent) {
-                                el.click();
-                                return {success: true, method: 'text:' + text};
-                            }
-                        }
-                        
-                        return {success: false};
-                    }''')
-                    
-                    if result.get('success'):
-                        log(f"    ✓ Posted ({result.get('method')})")
-                    else:
-                        log(f"    → Trying Enter...")
-                        page.keyboard.press("Enter")
-                    
-                    time.sleep(2)
-                    
-                    # Success!
-                    commented_videos.add(video_id)
-                    videos_commented += 1
-                    automation_status["comments_posted"] += 1
-                    
-                    report_entry = {
-                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "profile": profile_name,
-                        "video_url": current_url,
-                        "video_id": video_id,
-                        "comment": comment_text,
-                        "sheet": from_sheet  # Track which sheet the comment came from
-                    }
-                    
-                    automation_status["report"].append(report_entry)
-                    
-                    # Save to local file
-                    save_report_history()
-                    
-                    # Send to cloud dashboard (non-blocking)
-                    try:
-                        threading.Thread(target=send_to_cloud, args=(report_entry,), daemon=True).start()
-                    except:
-                        pass
-                    
-                    log(f"    ✓ SUCCESS: {comment_text[:40]}...")
-                    
-                    # Close comments
-                    page.keyboard.press("Escape")
-                    time.sleep(1)
-                    
-                    # Wait
-                    delay = random.randint(settings["min_delay"], settings["max_delay"])
-                    log(f"    ⏳ Waiting {delay}s...")
-                    for _ in range(delay):
-                        if not automation_status["running"]:
-                            break
-                        time.sleep(1)
-                
-                except Exception as e:
-                    log(f"    ✗ Error: {e}")
-                
-                # Close any extra TikTok tabs that might have opened (keep AdsPower tab)
-                try:
-                    current_pages = context.pages
-                    tiktok_pages = [p for p in current_pages if "tiktok" in p.url.lower()]
-                    if len(tiktok_pages) > 1:
-                        for p in tiktok_pages:
-                            if p != page:
-                                p.close()
                 except:
                     pass
                 
-                # Navigate to next video
-                current_url = page.url
-                if "/video/" in current_url:
-                    # In video view - go back to grid or scroll to next
-                    log(f"    → Going to next video...")
-                    page.keyboard.press("Escape")  # Close any dialogs
-                    time.sleep(0.5)
-                    
-                    # Check if we should go back to hashtag grid
-                    target_hashtag = settings.get("target_hashtag", "").strip()
-                    if target_hashtag:
-                        # Go back to hashtag page to pick another video
-                        page.keyboard.press("Escape")  # Close video
-                        time.sleep(1)
-                        # If still on video page, navigate back
-                        if "/video/" in page.url:
-                            hashtag = target_hashtag.replace("#", "").strip()
-                            page.goto(f"https://www.tiktok.com/tag/{hashtag}", wait_until="domcontentloaded", timeout=30000)
-                            time.sleep(3)
-                            # Scroll to load more videos
-                            for _ in range(video_num // 3 + 1):
-                                page.keyboard.press("ArrowDown")
-                                time.sleep(0.3)
-                    else:
-                        # On For You page - just scroll down
-                        page.keyboard.press("ArrowDown")
-                else:
-                    # Still on grid view
-                    page.keyboard.press("ArrowDown")
-                
-                time.sleep(2)
+                # Clean up extra tabs
+                try:
+                    current_pages = context.pages
+                    tiktok_pages = [pg for pg in current_pages if "tiktok" in pg.url.lower()]
+                    if len(tiktok_pages) > 1:
+                        for pg in tiktok_pages:
+                            if pg != page:
+                                pg.close()
+                except:
+                    pass
             
-            log(f"  ✓ Done: {videos_commented} comments")
+            log(f"  ✓ Done: {videos_commented} comments posted")
             browser.close()
             return videos_commented > 0
             
