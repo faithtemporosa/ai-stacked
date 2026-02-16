@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, BackgroundTasks
+from fastapi import FastAPI, APIRouter, HTTPException, BackgroundTasks, Query
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -9,7 +9,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, Dict, Any
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import httpx
 import csv
 import io
@@ -68,6 +68,43 @@ class AutomationRun(BaseModel):
 class Comment(BaseModel):
     text: str
     brand: str
+
+# ==============================================================================
+# PUBLIC REPORTING MODELS - For real-time team dashboard
+# ==============================================================================
+class CommentReport(BaseModel):
+    """A single comment report from the local TikTok commenter"""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    timestamp: str
+    profile: str
+    video_url: str
+    video_id: str
+    comment: str
+    sheet: str  # Which brand (Bump Connect, Kollabsy, Bump Syndicate)
+    received_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class CommentReportCreate(BaseModel):
+    """Input model for creating a comment report"""
+    timestamp: str
+    profile: str
+    video_url: str
+    video_id: str
+    comment: str
+    sheet: str
+
+class BulkReportCreate(BaseModel):
+    """For syncing multiple reports at once"""
+    reports: List[CommentReportCreate]
+
+class ReportStats(BaseModel):
+    """Statistics for the dashboard"""
+    total_comments: int
+    today_comments: int
+    week_comments: int
+    unique_profiles: int
+    unique_videos: int
+    by_brand: Dict[str, int]
 
 # Google Sheets Functions
 async def fetch_sheet_data(sheet_name: str) -> List[Comment]:
