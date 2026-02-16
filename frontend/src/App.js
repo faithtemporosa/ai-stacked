@@ -133,10 +133,18 @@ function App() {
     const interval = setInterval(() => {
       fetchStats();
       fetchReports();
+      fetchLogs();
     }, REFRESH_INTERVAL);
     
     return () => clearInterval(interval);
-  }, [autoRefresh, fetchStats, fetchReports]);
+  }, [autoRefresh, fetchStats, fetchReports, fetchLogs]);
+
+  // Auto-scroll logs
+  useEffect(() => {
+    if (logsEndRef.current) {
+      logsEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [logs]);
 
   const formatTimestamp = (ts) => {
     if (!ts) return "-";
