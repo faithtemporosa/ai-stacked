@@ -746,8 +746,19 @@ async def receive_report(report: CommentReportCreate):
     """
     Receive a single comment report from the local TikTok commenter script.
     Called by tiktok_commenter.py when a comment is successfully posted.
+    Checks for duplicates before inserting.
     """
     try:
+        # Check for duplicate
+        existing = await db.comment_reports.find_one({
+            "timestamp": report.timestamp,
+            "profile": report.profile,
+            "video_id": report.video_id
+        })
+        
+        if existing:
+            return {"status": "duplicate", "id": existing.get("id")}
+        
         # Create the report document
         report_doc = CommentReport(**report.model_dump())
         doc = report_doc.model_dump()
