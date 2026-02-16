@@ -212,6 +212,53 @@ function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8">
+        {/* Import Result Notification */}
+        {importResult && (
+          <div 
+            className={`mb-6 p-4 rounded-xl border ${
+              importResult.success 
+                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" 
+                : "bg-red-500/10 border-red-500/30 text-red-400"
+            }`}
+            data-testid="import-result"
+          >
+            <div className="flex items-center justify-between">
+              <span>{importResult.message}</span>
+              <button 
+                onClick={() => setImportResult(null)}
+                className="text-xs opacity-70 hover:opacity-100"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Target Configuration Banner */}
+        <div className="bg-gradient-to-r from-violet-900/30 via-fuchsia-900/20 to-violet-900/30 border border-violet-500/30 rounded-xl p-4 mb-6">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-6">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-white">25</div>
+                <div className="text-xs text-zinc-400">Profiles</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-white">100</div>
+                <div className="text-xs text-zinc-400">Videos/Profile</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-emerald-400">2,500</div>
+                <div className="text-xs text-zinc-400">Daily Target</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-zinc-400">
+              <span className="px-2 py-1 rounded bg-emerald-500/20 text-emerald-400">Bump Connect</span>
+              <span className="px-2 py-1 rounded bg-violet-500/20 text-violet-400">Kollabsy</span>
+              <span className="px-2 py-1 rounded bg-amber-500/20 text-amber-400">Bump Syndicate</span>
+            </div>
+          </div>
+        </div>
+
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
           {/* Total Comments */}
