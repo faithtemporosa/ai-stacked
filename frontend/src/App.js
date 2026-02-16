@@ -226,7 +226,17 @@ function Dashboard() {
                 data-testid="import-btn"
               >
                 <Upload className={`w-4 h-4 ${importing ? "animate-pulse" : ""}`} />
-                {importing ? "Importing..." : "Import Data"}
+                {importing ? "Importing..." : "Import"}
+              </button>
+
+              {/* Export button */}
+              <button
+                onClick={() => window.open(`${API}/reports/export?filter=${filter}`, '_blank')}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-sm transition-all"
+                data-testid="export-btn"
+              >
+                <Download className="w-4 h-4" />
+                Export CSV
               </button>
               
               {/* Auto-refresh toggle */}
