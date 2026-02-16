@@ -1099,6 +1099,12 @@ def api_clear_logs():
     automation_status["logs"] = []
     return jsonify({"ok": True})
 
+@app.route('/api/sync-to-cloud', methods=['POST'])
+def api_sync_to_cloud():
+    """Manually sync all reports to cloud dashboard"""
+    synced = sync_all_to_cloud()
+    return jsonify({"ok": True, "synced": synced})
+
 @app.route('/api/clear-report', methods=['POST'])
 def api_clear_report():
     automation_status["report"] = []
