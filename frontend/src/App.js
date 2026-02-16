@@ -40,7 +40,11 @@ function App() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  const [logs, setLogs] = useState([]);
+  const [automationStatus, setAutomationStatus] = useState(null);
+  const [logsUpdatedAt, setLogsUpdatedAt] = useState(null);
   const fileInputRef = useRef(null);
+  const logsEndRef = useRef(null);
 
   const fetchStats = useCallback(async () => {
     try {
