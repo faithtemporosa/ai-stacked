@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import "@/App.css";
 import axios from "axios";
 import { 
@@ -13,7 +13,9 @@ import {
   ExternalLink,
   Sparkles,
   BarChart3,
-  Clock
+  Clock,
+  Upload,
+  Download
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
