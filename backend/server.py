@@ -218,6 +218,184 @@ async def require_auth(credentials: HTTPAuthorizationCredentials = Depends(secur
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
+# ==============================================================================
+# AUTHENTICATION ENDPOINTS
+# ==============================================================================
+
+@api_router.post("/auth/register", response_model=TokenResponse)
+async def register(user_data: UserCreate):
+    """Register a new user"""
+    # Check if user exists
+    existing = await db.users.find_one({"email": user_data.email.lower()})
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Create user
+    user_id = str(uuid.uuid4())
+    team_id = None
+    team_name = None
+    
+    # Create team if team_name provided
+    if user_data.team_name:
+        team_id = str(uuid.uuid4())
+        team_doc = {
+            "id": team_id,
+            "name": user_data.team_name,
+            "owner_id": user_id,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.teams.insert_one(team_doc)
+        team_name = user_data.team_name
+    
+    user_doc = {
+        "id": user_id,
+        "email": user_data.email.lower(),
+        "password": get_password_hash(user_data.password),
+        "name": user_data.name,
+        "team_id": team_id,
+        "team_name": team_name,
+        "role": "admin" if team_id else "member",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.users.insert_one(user_doc)
+    
+    # Generate token
+    access_token = create_access_token(data={"sub": user_id})
+    
+    # Prepare response (no password)
+    user_response = UserResponse(
+        id=user_id,
+        email=user_doc["email"],
+        name=user_doc["name"],
+        team_id=team_id,
+        team_name=team_name,
+        role=user_doc["role"],
+        created_at=user_doc["created_at"]
+    )
+    
+    return TokenResponse(access_token=access_token, user=user_response)
+
+@api_router.post("/auth/login", response_model=TokenResponse)
+async def login(credentials: UserLogin):
+    """Login with email and password"""
+    user = await db.users.find_one({"email": credentials.email.lower()})
+    
+    if not user or not verify_password(credentials.password, user["password"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    # Generate token
+    access_token = create_access_token(data={"sub": user["id"]})
+    
+    # Get team name if in team
+    team_name = user.get("team_name")
+    if user.get("team_id") and not team_name:
+        team = await db.teams.find_one({"id": user["team_id"]})
+        team_name = team.get("name") if team else None
+    
+    user_response = UserResponse(
+        id=user["id"],
+        email=user["email"],
+        name=user["name"],
+        team_id=user.get("team_id"),
+        team_name=team_name,
+        role=user.get("role", "member"),
+        created_at=user.get("created_at", "")
+    )
+    
+    return TokenResponse(access_token=access_token, user=user_response)
+
+@api_router.get("/auth/me", response_model=UserResponse)
+async def get_me(user: dict = Depends(require_auth)):
+    """Get current user profile"""
+    team_name = user.get("team_name")
+    if user.get("team_id") and not team_name:
+        team = await db.teams.find_one({"id": user["team_id"]})
+        team_name = team.get("name") if team else None
+    
+    return UserResponse(
+        id=user["id"],
+        email=user["email"],
+        name=user["name"],
+        team_id=user.get("team_id"),
+        team_name=team_name,
+        role=user.get("role", "member"),
+        created_at=user.get("created_at", "")
+    )
+
+@api_router.post("/teams/create")
+async def create_team(team_data: TeamCreate, user: dict = Depends(require_auth)):
+    """Create a new team (for users without a team)"""
+    if user.get("team_id"):
+        raise HTTPException(status_code=400, detail="You already belong to a team")
+    
+    team_id = str(uuid.uuid4())
+    team_doc = {
+        "id": team_id,
+        "name": team_data.name,
+        "owner_id": user["id"],
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.teams.insert_one(team_doc)
+    
+    # Update user with team
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"team_id": team_id, "team_name": team_data.name, "role": "admin"}}
+    )
+    
+    return {"status": "success", "team_id": team_id, "team_name": team_data.name}
+
+@api_router.post("/teams/invite")
+async def invite_to_team(invite: TeamInvite, user: dict = Depends(require_auth)):
+    """Invite a user to your team (admin only)"""
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Only team admins can invite members")
+    
+    if not user.get("team_id"):
+        raise HTTPException(status_code=400, detail="You don't belong to a team")
+    
+    # Check if invitee exists
+    invitee = await db.users.find_one({"email": invite.email.lower()})
+    
+    if invitee:
+        # User exists, add to team
+        if invitee.get("team_id"):
+            raise HTTPException(status_code=400, detail="User already belongs to a team")
+        
+        team = await db.teams.find_one({"id": user["team_id"]})
+        await db.users.update_one(
+            {"id": invitee["id"]},
+            {"$set": {"team_id": user["team_id"], "team_name": team.get("name"), "role": invite.role}}
+        )
+        return {"status": "success", "message": f"Added {invite.email} to team"}
+    else:
+        # Create invite record
+        invite_doc = {
+            "id": str(uuid.uuid4()),
+            "team_id": user["team_id"],
+            "email": invite.email.lower(),
+            "role": invite.role,
+            "invited_by": user["id"],
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.team_invites.insert_one(invite_doc)
+        return {"status": "success", "message": f"Invite sent to {invite.email}"}
+
+@api_router.get("/teams/members")
+async def get_team_members(user: dict = Depends(require_auth)):
+    """Get all members of your team"""
+    if not user.get("team_id"):
+        return {"members": []}
+    
+    members = await db.users.find(
+        {"team_id": user["team_id"]},
+        {"_id": 0, "password": 0}
+    ).to_list(100)
+    
+    return {"members": members}
+
 # Google Sheets Functions
 async def fetch_sheet_data(sheet_name: str) -> List[Comment]:
     """Fetch comments from a specific sheet in Google Sheets"""
