@@ -621,7 +621,30 @@ function Dashboard() {
           <p>TikTok Comments Dashboard - Real-time Team Reporting</p>
         </div>
       </footer>
+
+      {/* Auth Modal */}
+      {showAuthModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="relative">
+            <button
+              onClick={() => setShowAuthModal(false)}
+              className="absolute -top-4 -right-4 w-8 h-8 bg-zinc-800 hover:bg-zinc-700 rounded-full flex items-center justify-center text-zinc-400 hover:text-white z-10"
+            >
+              ×
+            </button>
+            <AuthPage onSuccess={() => setShowAuthModal(false)} />
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <Dashboard />
+    </AuthProvider>
   );
 }
 
