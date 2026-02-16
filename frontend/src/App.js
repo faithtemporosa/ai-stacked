@@ -300,9 +300,9 @@ function App() {
               <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center">
                 <Users className="w-5 h-5 text-zinc-400" />
               </div>
-              <div className="text-2xl font-bold">{stats?.unique_profiles || 0}</div>
+              <div className="text-2xl font-bold">{stats?.unique_profiles || 0}/25</div>
             </div>
-            <p className="text-xs text-zinc-500">Profiles</p>
+            <p className="text-xs text-zinc-500">Active Profiles</p>
           </div>
 
           {/* Videos */}
