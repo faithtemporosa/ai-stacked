@@ -310,8 +310,381 @@ def get_random_comment(sheet_name):
         return comment, brand
     return None, None
 
+# =============================================================================
+# IMPROVED TIKTOK AUTOMATION WITH RETRY LOGIC
+# =============================================================================
+
+MAX_RETRIES = 3
+RETRY_DELAY = 5
+
+def safe_click(page, selectors, description="element", timeout=5000):
+    """Safely click an element with multiple selector fallbacks"""
+    for selector in selectors:
+        try:
+            element = page.locator(selector).first
+            if element.is_visible(timeout=timeout):
+                element.click(timeout=timeout)
+                return True, selector
+        except:
+            continue
+    return False, None
+
+def safe_wait_for_video(page, timeout=15000):
+    """Wait for video content to load with multiple strategies"""
+    strategies = [
+        ('video', 'video element'),
+        ('[data-e2e="browse-video"]', 'browse video'),
+        ('[class*="DivVideoContainer"]', 'video container'),
+        ('[class*="video-card"]', 'video card'),
+    ]
+    
+    for selector, name in strategies:
+        try:
+            page.wait_for_selector(selector, timeout=timeout)
+            return True, name
+        except:
+            continue
+    return False, None
+
+def check_login_status(page):
+    """Check if user is logged in to TikTok"""
+    try:
+        # Check URL for login redirect
+        if "login" in page.url.lower() or "signup" in page.url.lower():
+            return False
+        
+        # Check for login prompts in page
+        login_indicators = page.evaluate('''() => {
+            const text = document.body.innerText.toLowerCase();
+            // Check for login modal or buttons
+            if (document.querySelector('[data-e2e="login-button"]')) return true;
+            if (document.querySelector('[class*="LoginModal"]')) return true;
+            if (document.querySelector('a[href*="/login"]')) {
+                // Only return true if it's a prominent login prompt
+                const loginLinks = document.querySelectorAll('a[href*="/login"]');
+                for (let link of loginLinks) {
+                    if (link.offsetHeight > 30) return true;
+                }
+            }
+            return false;
+        }''')
+        
+        return not login_indicators
+    except:
+        return True  # Assume logged in if check fails
+
+def click_comment_button(page):
+    """Click the comment button with updated selectors for 2025 TikTok"""
+    # Close any open dialogs first
+    try:
+        page.keyboard.press("Escape")
+        time.sleep(0.3)
+    except:
+        pass
+    
+    # Updated selectors for TikTok 2025
+    result = page.evaluate('''() => {
+        // Method 1: data-e2e attribute (most reliable)
+        let btn = document.querySelector('[data-e2e="comment-icon"]');
+        if (btn) { btn.click(); return {success: true, method: 'data-e2e-comment-icon'}; }
+        
+        // Method 2: Browse comment icon
+        btn = document.querySelector('[data-e2e="browse-comment-icon"]');
+        if (btn) { btn.click(); return {success: true, method: 'data-e2e-browse-comment'}; }
+        
+        // Method 3: aria-label variations
+        const commentLabels = ['comment', 'comments', 'kommentar', 'commenti', 'comentar', 'commenter', 'comentário'];
+        for (let label of commentLabels) {
+            btn = document.querySelector('[aria-label*="' + label + '" i]');
+            if (btn && !btn.closest('[class*="share" i]') && btn.offsetParent) { 
+                btn.click(); 
+                return {success: true, method: 'aria-label-' + label}; 
+            }
+        }
+        
+        // Method 4: Find by SVG path (comment bubble icon)
+        const svgs = document.querySelectorAll('svg');
+        for (let svg of svgs) {
+            const path = svg.querySelector('path');
+            if (path) {
+                const d = path.getAttribute('d') || '';
+                // Comment bubble typically has specific path patterns
+                if (d.includes('M12') && d.includes('C') && svg.closest('button, [role="button"]')) {
+                    const parent = svg.closest('button, [role="button"]');
+                    if (parent && parent.offsetParent) {
+                        parent.click();
+                        return {success: true, method: 'svg-path'};
+                    }
+                }
+            }
+        }
+        
+        // Method 5: Action bar - comment is usually 2nd after like
+        const actionBar = document.querySelector('[class*="DivActionItemContainer"], [class*="ActionBar"]');
+        if (actionBar) {
+            const buttons = actionBar.querySelectorAll('button, [role="button"]');
+            if (buttons.length >= 2) {
+                buttons[1].click();
+                return {success: true, method: 'action-bar-index'};
+            }
+        }
+        
+        // Method 6: Find by sibling of like button
+        const likeBtn = document.querySelector('[data-e2e="like-icon"], [data-e2e="browse-like-icon"]');
+        if (likeBtn) {
+            const container = likeBtn.closest('[class*="Container"], [class*="Item"]');
+            if (container && container.nextElementSibling) {
+                const btn = container.nextElementSibling.querySelector('button, [role="button"]') || container.nextElementSibling;
+                if (btn.offsetParent) {
+                    btn.click();
+                    return {success: true, method: 'like-sibling'};
+                }
+            }
+        }
+        
+        return {success: false};
+    }''')
+    
+    return result
+
+def find_and_focus_comment_input(page):
+    """Find and focus the comment input field"""
+    result = page.evaluate('''() => {
+        // Method 1: data-e2e attributes
+        const selectors = [
+            '[data-e2e="comment-input"]',
+            '[data-e2e="comment-text-input"]',
+            '[class*="DivInputEditorContainer"] [contenteditable="true"]',
+            '[class*="CommentInputContainer"] [contenteditable="true"]',
+            '[placeholder*="comment" i]',
+            '[placeholder*="Add a comment" i]',
+            '[placeholder*="commento" i]',
+            '[placeholder*="Aggiungi" i]',
+            'div[contenteditable="true"][data-contents="true"]',
+            'div[contenteditable="true"]'
+        ];
+        
+        for (let sel of selectors) {
+            const el = document.querySelector(sel);
+            if (el && el.offsetParent) {
+                el.click();
+                el.focus();
+                return {success: true, method: sel};
+            }
+        }
+        
+        // Try finding by class patterns
+        const editables = document.querySelectorAll('[contenteditable="true"]');
+        for (let el of editables) {
+            if (el.offsetParent && el.offsetHeight > 20 && el.offsetHeight < 200) {
+                el.click();
+                el.focus();
+                return {success: true, method: 'contenteditable-search'};
+            }
+        }
+        
+        return {success: false};
+    }''')
+    
+    return result
+
+def click_post_button(page):
+    """Click the post/submit button for the comment"""
+    result = page.evaluate('''() => {
+        // Method 1: data-e2e
+        let btn = document.querySelector('[data-e2e="comment-post"]');
+        if (btn && btn.offsetParent) { btn.click(); return {success: true, method: 'data-e2e-post'}; }
+        
+        // Method 2: Class-based
+        const classSelectors = [
+            '[class*="DivPostButton"]',
+            '[class*="PostButton"]',
+            '[class*="CommentPost"]',
+            '[class*="submit" i]'
+        ];
+        
+        for (let sel of classSelectors) {
+            btn = document.querySelector(sel);
+            if (btn && btn.offsetParent) { 
+                btn.click(); 
+                return {success: true, method: sel}; 
+            }
+        }
+        
+        // Method 3: Find by text content
+        const postWords = ['post', 'pubblica', 'publicar', 'publier', 'posten', 'enviar', 'отправить', '发布', '게시', 'send', 'submit'];
+        const elements = document.querySelectorAll('button, span, div[role="button"]');
+        
+        for (let el of elements) {
+            const text = el.textContent.toLowerCase().trim();
+            if (postWords.includes(text) && el.offsetParent) {
+                el.click();
+                return {success: true, method: 'text-' + text};
+            }
+        }
+        
+        return {success: false};
+    }''')
+    
+    return result
+
+def process_single_video_with_retry(page, video_num, profile_name, target_videos):
+    """Process a single video with retry logic"""
+    global commented_videos
+    
+    for attempt in range(MAX_RETRIES):
+        try:
+            log(f"    📹 Video {video_num + 1}/{target_videos}" + (f" (attempt {attempt + 1})" if attempt > 0 else ""))
+            
+            current_url = page.url
+            
+            # Check for login redirect
+            if not check_login_status(page):
+                log(f"    ⚠ Login required - skipping profile")
+                return False, "login_required"
+            
+            # Handle hashtag/search grid view
+            if "/tag/" in current_url or "/search" in current_url:
+                log(f"    → Grid view detected - clicking video...")
+                
+                # Scroll to load more videos
+                page.evaluate('window.scrollBy(0, 200)')
+                time.sleep(1)
+                
+                # Try to click a video from the grid
+                click_result = page.evaluate('''(videoIndex) => {
+                    const videoSelectors = [
+                        '[data-e2e="challenge-item"]',
+                        '[data-e2e="search_top-item"]',
+                        '[class*="DivItemCardContainer"]',
+                        '[class*="DivVideoCard"]',
+                        'a[href*="/video/"]'
+                    ];
+                    
+                    for (let selector of videoSelectors) {
+                        const videos = document.querySelectorAll(selector);
+                        const targetIndex = videoIndex % Math.max(videos.length, 1);
+                        if (videos.length > targetIndex) {
+                            videos[targetIndex].click();
+                            return {success: true, method: selector, count: videos.length};
+                        }
+                    }
+                    return {success: false, count: 0};
+                }''', video_num % 12)
+                
+                if not click_result.get('success'):
+                    log(f"    ⚠ Could not find video in grid, scrolling...")
+                    page.keyboard.press("ArrowDown")
+                    time.sleep(2)
+                    continue
+                
+                log(f"    ✓ Clicked video ({click_result.get('method')})")
+                time.sleep(3)
+                
+                # Verify we're on video page
+                if "/video/" not in page.url:
+                    log(f"    ⚠ Video didn't open, retrying...")
+                    continue
+            
+            video_id = f"video_{video_num}_{int(time.time())}"
+            
+            if video_id in commented_videos:
+                log(f"    ⏭ Already commented, skipping")
+                return True, "skipped"
+            
+            # Step 1: Open comments
+            log(f"    → Opening comments...")
+            comment_result = click_comment_button(page)
+            
+            if not comment_result.get('success'):
+                log(f"    ⚠ Could not open comments")
+                if attempt < MAX_RETRIES - 1:
+                    time.sleep(RETRY_DELAY)
+                    continue
+                return False, "no_comments"
+            
+            log(f"    ✓ Comments opened ({comment_result.get('method')})")
+            time.sleep(2)
+            
+            # Check if share dialog opened instead
+            share_check = page.evaluate('''() => {
+                const shareIndicators = ['copy link', 'share to', 'send to'];
+                const text = document.body.innerText.toLowerCase();
+                return shareIndicators.some(ind => text.includes(ind));
+            }''')
+            
+            if share_check:
+                log(f"    ⚠ Share dialog opened instead, closing...")
+                page.keyboard.press("Escape")
+                time.sleep(1)
+                if attempt < MAX_RETRIES - 1:
+                    continue
+                return False, "wrong_dialog"
+            
+            # Step 2: Find comment input
+            log(f"    → Finding input...")
+            input_result = find_and_focus_comment_input(page)
+            
+            if not input_result.get('success'):
+                log(f"    ⚠ Comment input not found")
+                page.keyboard.press("Escape")
+                if attempt < MAX_RETRIES - 1:
+                    time.sleep(RETRY_DELAY)
+                    continue
+                return False, "no_input"
+            
+            log(f"    ✓ Input found ({input_result.get('method')})")
+            time.sleep(0.5)
+            
+            # Step 3: Get and type comment
+            comment_text, from_sheet = get_random_comment(None)
+            if not comment_text:
+                log(f"    ⚠ No comments available")
+                return False, "no_comment_text"
+            
+            log(f"    → Typing ({from_sheet})...")
+            
+            # Clear any existing text first
+            page.keyboard.press("Control+a")
+            time.sleep(0.1)
+            
+            # Type the comment
+            page.keyboard.type(comment_text, delay=random.randint(30, 70))
+            time.sleep(1)
+            
+            # Step 4: Post comment
+            log(f"    → Posting...")
+            post_result = click_post_button(page)
+            
+            if not post_result.get('success'):
+                log(f"    → Trying Enter key...")
+                page.keyboard.press("Enter")
+            else:
+                log(f"    ✓ Clicked post ({post_result.get('method')})")
+            
+            time.sleep(2)
+            
+            # Success!
+            commented_videos.add(video_id)
+            
+            return True, {
+                "comment": comment_text,
+                "sheet": from_sheet,
+                "video_url": current_url,
+                "video_id": video_id
+            }
+            
+        except Exception as e:
+            log(f"    ✗ Error: {str(e)[:100]}")
+            if attempt < MAX_RETRIES - 1:
+                log(f"    → Retrying in {RETRY_DELAY}s...")
+                time.sleep(RETRY_DELAY)
+            continue
+    
+    return False, "max_retries"
+
 def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
-    """Connect to browser and comment on TikTok videos using JS injection"""
+    """Connect to browser and comment on TikTok videos - IMPROVED VERSION"""
     global commented_videos
     
     if not HAS_PLAYWRIGHT:
@@ -320,6 +693,8 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
     
     videos_commented = 0
     target_videos = settings["videos_per_profile"]
+    consecutive_failures = 0
+    MAX_CONSECUTIVE_FAILURES = 5
     
     try:
         with sync_playwright() as p:
