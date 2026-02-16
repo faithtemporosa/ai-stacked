@@ -201,7 +201,9 @@ function Dashboard() {
               </div>
               <div>
                 <h1 className="text-xl font-bold tracking-tight" data-testid="app-title">TikTok Comments Dashboard</h1>
-                <p className="text-zinc-500 text-sm">Real-time reporting for the team</p>
+                <p className="text-zinc-500 text-sm">
+                  {user?.team_name ? `Team: ${user.team_name}` : 'Real-time reporting for the team'}
+                </p>
               </div>
             </div>
             
@@ -257,6 +259,33 @@ function Dashboard() {
                   <Clock className="w-3 h-3" />
                   {lastUpdated.toLocaleTimeString()}
                 </span>
+              )}
+
+              {/* Auth section */}
+              {isAuthenticated ? (
+                <div className="flex items-center gap-2 ml-2 pl-4 border-l border-zinc-700">
+                  <div className="flex items-center gap-2 px-3 py-2 bg-zinc-800 rounded-lg">
+                    <User className="w-4 h-4 text-violet-400" />
+                    <span className="text-sm text-zinc-300">{user?.name}</span>
+                  </div>
+                  <button
+                    onClick={logout}
+                    className="p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-all"
+                    title="Sign out"
+                    data-testid="logout-btn"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-sm text-zinc-300 transition-all ml-2"
+                  data-testid="signin-btn"
+                >
+                  <User className="w-4 h-4" />
+                  Sign In
+                </button>
               )}
             </div>
           </div>
