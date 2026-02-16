@@ -151,6 +151,49 @@ def log(message):
     print(log_entry)
     if len(automation_status["logs"]) > 200:
         automation_status["logs"] = automation_status["logs"][-200:]
+    
+    # Send logs to cloud (non-blocking)
+    try:
+        threading.Thread(target=sync_logs_to_cloud, daemon=True).start()
+    except:
+        pass
+
+def sync_logs_to_cloud():
+    """Send current logs and status to cloud dashboard"""
+    try:
+        log_entries = []
+        for log_line in automation_status["logs"][-50:]:  # Send last 50 logs
+            # Parse timestamp from log line
+            if log_line.startswith("[") and "]" in log_line:
+                ts = log_line[1:log_line.index("]")]
+                msg = log_line[log_line.index("]")+2:]
+            else:
+                ts = datetime.now().strftime("%H:%M:%S")
+                msg = log_line
+            
+            log_entries.append({
+                "timestamp": ts,
+                "message": msg,
+                "level": "error" if "✗" in msg else "success" if "✓" in msg else "info"
+            })
+        
+        requests.post(
+            f"{CLOUD_API_URL}/logs",
+            json={
+                "logs": log_entries,
+                "status": {
+                    "running": automation_status["running"],
+                    "current_profile": automation_status["current_profile"],
+                    "progress": automation_status["progress"],
+                    "total": automation_status["total"],
+                    "comments_posted": automation_status["comments_posted"],
+                    "completed": len(automation_status["completed"])
+                }
+            },
+            timeout=5
+        )
+    except:
+        pass  # Silently fail - don't interrupt main process
 
 def fetch_adspower_profiles():
     global profiles
