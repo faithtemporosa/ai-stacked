@@ -608,6 +608,56 @@ async def clear_reports():
         logger.error(f"Error clearing reports: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@api_router.post("/reports/import")
+async def import_reports_from_file(data: dict):
+    """
+    Import reports from the local tiktok_comments_history.json file format.
+    Accepts the JSON structure: {"report": [...], "last_updated": "..."}
+    """
+    try:
+        reports = data.get("report", [])
+        if not reports:
+            raise HTTPException(status_code=400, detail="No reports found in data")
+        
+        inserted_count = 0
+        skipped_count = 0
+        
+        for report in reports:
+            # Check if this report already exists (by timestamp + profile + video_id)
+            existing = await db.comment_reports.find_one({
+                "timestamp": report.get("timestamp"),
+                "profile": report.get("profile"),
+                "video_id": report.get("video_id")
+            })
+            
+            if existing:
+                skipped_count += 1
+                continue
+            
+            # Create report document
+            report_doc = CommentReport(
+                timestamp=report.get("timestamp", ""),
+                profile=report.get("profile", "Unknown"),
+                video_url=report.get("video_url", ""),
+                video_id=report.get("video_id", str(uuid.uuid4())),
+                comment=report.get("comment", ""),
+                sheet=report.get("sheet", "Unknown")
+            )
+            
+            await db.comment_reports.insert_one(report_doc.model_dump())
+            inserted_count += 1
+        
+        logger.info(f"Imported {inserted_count} reports, skipped {skipped_count} duplicates")
+        return {
+            "status": "success",
+            "inserted": inserted_count,
+            "skipped": skipped_count,
+            "total_in_file": len(reports)
+        }
+    except Exception as e:
+        logger.error(f"Error importing reports: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Include the router in the main app
 app.include_router(api_router)
 
