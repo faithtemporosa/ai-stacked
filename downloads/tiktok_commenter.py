@@ -962,11 +962,16 @@ DASHBOARD_HTML = """
                 <div class="card-title"><span>📊 All Comments History (All Time)</span><span id="rc" style="color:#71717a">0 total</span></div>
                 <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">
                     <button class="btn btn-primary" onclick="expCSV()">📥 Export CSV</button>
+                    <button class="btn btn-secondary" onclick="syncCloud()" style="background:#4c1d95;">☁️ Sync to Cloud</button>
                     <button class="btn btn-secondary" onclick="filterToday()">Today</button>
                     <button class="btn btn-secondary" onclick="filterWeek()">This Week</button>
                     <button class="btn btn-secondary" onclick="filterMonth()">This Month</button>
                     <button class="btn btn-secondary" onclick="filterAll()">All Time</button>
                     <button class="btn btn-danger" onclick="clrReport()">🗑️ Clear All</button>
+                </div>
+                <div style="background:#1e1b4b;border:1px solid #4c1d95;border-radius:8px;padding:12px;margin-bottom:16px;">
+                    <div style="font-size:12px;color:#a78bfa;margin-bottom:4px;">☁️ Team Dashboard</div>
+                    <div style="font-size:11px;color:#71717a;">Comments are automatically synced to: <a href="https://profile-reports-sync.preview.emergentagent.com" target="_blank" style="color:#7c3aed;">profile-reports-sync.preview.emergentagent.com</a></div>
                 </div>
                 <div id="filter-info" style="font-size:12px;color:#a78bfa;margin-bottom:10px;">Showing: All time</div>
                 <div style="max-height:400px;overflow:auto">
