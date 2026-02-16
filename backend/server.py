@@ -41,10 +41,10 @@ app = FastAPI(title="TikTok Comments Dashboard API")
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
-# Configuration
-GOOGLE_SHEET_ID = "1cgjxB09nXSsKMEFwNxQlDzl8xVDyQgT0o8aKm6YOJ-o"
-REBOTOU_EXTENSION_ID = "cfgkjnjmlckppgajnicogfdnhhndpikk"
-ADSPOWER_API_PORT = 50325
+# Configuration (read from environment)
+GOOGLE_SHEET_ID = os.environ.get("GOOGLE_SHEET_ID", "1cgjxB09nXSsKMEFwNxQlDzl8xVDyQgT0o8aKm6YOJ-o")
+REBOTOU_EXTENSION_ID = os.environ.get("REBOTOU_EXTENSION_ID", "cfgkjnjmlckppgajnicogfdnhhndpikk")
+ADSPOWER_API_PORT = int(os.environ.get("ADSPOWER_API_PORT", "50325"))
 
 # Models
 class Profile(BaseModel):
