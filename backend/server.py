@@ -447,6 +447,167 @@ async def update_config(
     
     return {"status": "updated", "config": config}
 
+# ==============================================================================
+# PUBLIC REPORTING ENDPOINTS - For real-time team dashboard
+# ==============================================================================
+
+@api_router.post("/reports")
+async def receive_report(report: CommentReportCreate):
+    """
+    Receive a single comment report from the local TikTok commenter script.
+    Called by tiktok_commenter.py when a comment is successfully posted.
+    """
+    try:
+        # Create the report document
+        report_doc = CommentReport(**report.model_dump())
+        doc = report_doc.model_dump()
+        
+        # Insert into MongoDB
+        await db.comment_reports.insert_one(doc)
+        
+        logger.info(f"Received comment report: {report.profile} - {report.comment[:30]}...")
+        return {"status": "success", "id": report_doc.id}
+    except Exception as e:
+        logger.error(f"Error saving report: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/reports/bulk")
+async def receive_bulk_reports(data: BulkReportCreate):
+    """
+    Receive multiple comment reports at once.
+    Useful for syncing historical data or batch updates.
+    """
+    try:
+        inserted_count = 0
+        for report in data.reports:
+            report_doc = CommentReport(**report.model_dump())
+            doc = report_doc.model_dump()
+            await db.comment_reports.insert_one(doc)
+            inserted_count += 1
+        
+        logger.info(f"Received {inserted_count} bulk reports")
+        return {"status": "success", "inserted": inserted_count}
+    except Exception as e:
+        logger.error(f"Error saving bulk reports: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/reports")
+async def get_reports(
+    filter: Optional[str] = Query(None, description="Filter: today, week, month, all"),
+    profile: Optional[str] = Query(None, description="Filter by profile name"),
+    sheet: Optional[str] = Query(None, description="Filter by brand/sheet"),
+    limit: int = Query(500, ge=1, le=2000),
+    skip: int = Query(0, ge=0)
+):
+    """
+    Get comment reports for the public dashboard.
+    Supports filtering by date range, profile, and brand.
+    """
+    try:
+        # Build query
+        query = {}
+        
+        # Date filter
+        now = datetime.now(timezone.utc)
+        if filter == "today":
+            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            query["timestamp"] = {"$gte": today_start.strftime("%Y-%m-%d")}
+        elif filter == "week":
+            week_ago = (now - timedelta(days=7)).strftime("%Y-%m-%d")
+            query["timestamp"] = {"$gte": week_ago}
+        elif filter == "month":
+            month_ago = (now - timedelta(days=30)).strftime("%Y-%m-%d")
+            query["timestamp"] = {"$gte": month_ago}
+        
+        # Profile filter
+        if profile:
+            query["profile"] = {"$regex": profile, "$options": "i"}
+        
+        # Brand/sheet filter
+        if sheet:
+            query["sheet"] = sheet
+        
+        # Fetch reports
+        reports = await db.comment_reports.find(
+            query, 
+            {"_id": 0}
+        ).sort("timestamp", -1).skip(skip).limit(limit).to_list(limit)
+        
+        # Get total count
+        total = await db.comment_reports.count_documents(query)
+        
+        return {
+            "reports": reports,
+            "total": total,
+            "limit": limit,
+            "skip": skip,
+            "filter": filter or "all"
+        }
+    except Exception as e:
+        logger.error(f"Error fetching reports: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/reports/stats")
+async def get_report_stats():
+    """
+    Get statistics for the dashboard overview.
+    Returns total comments, today's count, unique profiles, etc.
+    """
+    try:
+        now = datetime.now(timezone.utc)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).strftime("%Y-%m-%d")
+        week_ago = (now - timedelta(days=7)).strftime("%Y-%m-%d")
+        
+        # Total comments
+        total_comments = await db.comment_reports.count_documents({})
+        
+        # Today's comments
+        today_comments = await db.comment_reports.count_documents({
+            "timestamp": {"$gte": today_start}
+        })
+        
+        # This week's comments
+        week_comments = await db.comment_reports.count_documents({
+            "timestamp": {"$gte": week_ago}
+        })
+        
+        # Unique profiles
+        unique_profiles = await db.comment_reports.distinct("profile")
+        
+        # Unique videos
+        unique_videos = await db.comment_reports.distinct("video_id")
+        
+        # By brand
+        pipeline = [
+            {"$group": {"_id": "$sheet", "count": {"$sum": 1}}}
+        ]
+        brand_counts = await db.comment_reports.aggregate(pipeline).to_list(10)
+        by_brand = {item["_id"]: item["count"] for item in brand_counts if item["_id"]}
+        
+        return ReportStats(
+            total_comments=total_comments,
+            today_comments=today_comments,
+            week_comments=week_comments,
+            unique_profiles=len(unique_profiles),
+            unique_videos=len(unique_videos),
+            by_brand=by_brand
+        )
+    except Exception as e:
+        logger.error(f"Error getting stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.delete("/reports")
+async def clear_reports():
+    """
+    Clear all reports (admin function).
+    """
+    try:
+        result = await db.comment_reports.delete_many({})
+        return {"status": "cleared", "deleted_count": result.deleted_count}
+    except Exception as e:
+        logger.error(f"Error clearing reports: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Include the router in the main app
 app.include_router(api_router)
 
