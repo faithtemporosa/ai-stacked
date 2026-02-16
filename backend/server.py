@@ -1038,6 +1038,79 @@ async def clear_logs():
         logger.error(f"Error clearing logs: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@api_router.get("/reports/export")
+async def export_reports(
+    filter: Optional[str] = Query(None, description="Filter: today, week, month, all"),
+    format: str = Query("csv", description="Export format: csv or json")
+):
+    """
+    Export all reports as CSV or JSON file.
+    """
+    try:
+        # Build query based on filter
+        query = {}
+        now = datetime.now(timezone.utc)
+        
+        if filter == "today":
+            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            query["timestamp"] = {"$gte": today_start.strftime("%Y-%m-%d")}
+        elif filter == "week":
+            week_ago = (now - timedelta(days=7)).strftime("%Y-%m-%d")
+            query["timestamp"] = {"$gte": week_ago}
+        elif filter == "month":
+            month_ago = (now - timedelta(days=30)).strftime("%Y-%m-%d")
+            query["timestamp"] = {"$gte": month_ago}
+        
+        # Fetch all matching reports
+        reports = await db.comment_reports.find(
+            query,
+            {"_id": 0}
+        ).sort("timestamp", -1).to_list(50000)
+        
+        if format == "json":
+            # Return as JSON file
+            content = json.dumps({"report": reports, "exported_at": now.isoformat()}, indent=2)
+            filename = f"tiktok_comments_export_{now.strftime('%Y%m%d_%H%M%S')}.json"
+            return StreamingResponse(
+                iter([content]),
+                media_type="application/json",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
+        else:
+            # Return as CSV
+            output = io.StringIO()
+            writer = csv.writer(output)
+            
+            # Header
+            writer.writerow(["Date", "Time", "Profile", "Comment", "Brand", "Video URL", "Video ID"])
+            
+            # Data rows
+            for report in reports:
+                timestamp = report.get("timestamp", "")
+                if " " in timestamp:
+                    date, time = timestamp.split(" ", 1)
+                else:
+                    date, time = timestamp, ""
+                
+                writer.writerow([
+                    date,
+                    time,
+                    report.get("profile", ""),
+                    report.get("comment", ""),
+                    report.get("sheet", ""),
+                    report.get("video_url", ""),
+                    report.get("video_id", "")
+                ])
+            
+            content = output.getvalue()
+            filename = f"tiktok_comments_export_{now.strftime('%Y%m%d_%H%M%S')}.csv"
+            
+            return StreamingResponse(
+                iter([content]),
+                media_type="text/csv",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
+
 # Include the router in the main app
 app.include_router(api_router)
 
