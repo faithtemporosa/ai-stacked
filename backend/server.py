@@ -1110,6 +1110,9 @@ async def export_reports(
                 media_type="text/csv",
                 headers={"Content-Disposition": f"attachment; filename={filename}"}
             )
+    except Exception as e:
+        logger.error(f"Error exporting reports: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Include the router in the main app
 app.include_router(api_router)
