@@ -15,7 +15,13 @@ import {
   BarChart3,
   Clock,
   Upload,
-  Download
+  Download,
+  Terminal,
+  Play,
+  Pause,
+  CheckCircle,
+  XCircle,
+  AlertCircle
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
