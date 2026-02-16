@@ -66,6 +66,40 @@ function App() {
     setLoading(false);
   }, [fetchStats, fetchReports]);
 
+  const handleFileImport = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setImporting(true);
+    setImportResult(null);
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      
+      const res = await axios.post(`${API}/reports/import`, data);
+      setImportResult({
+        success: true,
+        message: `Imported ${res.data.inserted} comments (${res.data.skipped} duplicates skipped)`
+      });
+      
+      // Refresh data
+      await fetchAll();
+    } catch (err) {
+      console.error("Import error:", err);
+      setImportResult({
+        success: false,
+        message: err.response?.data?.detail || "Failed to import file. Make sure it's a valid JSON file."
+      });
+    } finally {
+      setImporting(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
   // Initial fetch
   useEffect(() => {
     fetchAll();
