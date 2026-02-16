@@ -154,6 +154,27 @@ function App() {
             </div>
             
             <div className="flex items-center gap-4">
+              {/* Hidden file input */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileImport}
+                accept=".json"
+                className="hidden"
+                data-testid="file-input"
+              />
+              
+              {/* Import button */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={importing}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm transition-all disabled:opacity-50"
+                data-testid="import-btn"
+              >
+                <Upload className={`w-4 h-4 ${importing ? "animate-pulse" : ""}`} />
+                {importing ? "Importing..." : "Import Data"}
+              </button>
+              
               {/* Auto-refresh toggle */}
               <button
                 onClick={() => setAutoRefresh(!autoRefresh)}
