@@ -657,17 +657,25 @@ def run_tiktok_commenter(ws_endpoint, profile_name, sheet_name):
                     videos_commented += 1
                     automation_status["comments_posted"] += 1
                     
-                    automation_status["report"].append({
+                    report_entry = {
                         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "profile": profile_name,
                         "video_url": current_url,
                         "video_id": video_id,
                         "comment": comment_text,
                         "sheet": from_sheet  # Track which sheet the comment came from
-                    })
+                    }
                     
-                    # Save to file after each comment
+                    automation_status["report"].append(report_entry)
+                    
+                    # Save to local file
                     save_report_history()
+                    
+                    # Send to cloud dashboard (non-blocking)
+                    try:
+                        threading.Thread(target=send_to_cloud, args=(report_entry,), daemon=True).start()
+                    except:
+                        pass
                     
                     log(f"    ✓ SUCCESS: {comment_text[:40]}...")
                     
