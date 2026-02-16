@@ -83,9 +83,9 @@ function App() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    await Promise.all([fetchStats(), fetchReports()]);
+    await Promise.all([fetchStats(), fetchReports(), fetchLogs()]);
     setLoading(false);
-  }, [fetchStats, fetchReports]);
+  }, [fetchStats, fetchReports, fetchLogs]);
 
   const handleFileImport = async (event) => {
     const file = event.target.files[0];
