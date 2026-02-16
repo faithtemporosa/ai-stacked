@@ -32,6 +32,9 @@ function App() {
   const [filter, setFilter] = useState("all");
   const [lastUpdated, setLastUpdated] = useState(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
+  const fileInputRef = useRef(null);
 
   const fetchStats = useCallback(async () => {
     try {
