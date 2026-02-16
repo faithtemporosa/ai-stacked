@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import "@/App.css";
+import "./App.css";
 import axios from "axios";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import AuthPage from "./pages/AuthPage";
