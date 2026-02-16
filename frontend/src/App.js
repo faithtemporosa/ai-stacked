@@ -166,6 +166,22 @@ function App() {
     }
   };
 
+  const getLogColor = (message) => {
+    if (message.includes("✗") || message.includes("Error") || message.includes("Failed")) {
+      return "text-red-400";
+    }
+    if (message.includes("✓") || message.includes("SUCCESS") || message.includes("Completed")) {
+      return "text-emerald-400";
+    }
+    if (message.includes("⚠") || message.includes("Warning")) {
+      return "text-amber-400";
+    }
+    if (message.includes("→") || message.includes("Starting") || message.includes("Opening")) {
+      return "text-blue-400";
+    }
+    return "text-zinc-400";
+  };
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       {/* Header */}
