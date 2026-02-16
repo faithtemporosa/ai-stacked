@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import "@/App.css";
 import axios from "axios";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import AuthPage from "./pages/AuthPage";
 import { 
   Activity, 
   MessageCircle, 
@@ -21,7 +23,10 @@ import {
   Pause,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  LogOut,
+  User,
+  Settings
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
