@@ -505,6 +505,78 @@ function App() {
           <p>Data syncs automatically every 10 seconds when live updates are enabled</p>
           <p className="mt-1">Promoting: Bump Connect | Kollabsy | Bump Syndicate</p>
         </div>
+
+        {/* Live Logs Panel */}
+        <div className="mt-8 bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden" data-testid="logs-panel">
+          <div className="bg-zinc-800/50 px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Terminal className="w-5 h-5 text-zinc-400" />
+              <h3 className="font-semibold">Live Automation Logs</h3>
+              {automationStatus?.running ? (
+                <span className="flex items-center gap-1 px-2 py-1 rounded bg-emerald-500/20 text-emerald-400 text-xs">
+                  <Play className="w-3 h-3" />
+                  Running
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 px-2 py-1 rounded bg-zinc-700 text-zinc-400 text-xs">
+                  <Pause className="w-3 h-3" />
+                  Idle
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-4 text-xs text-zinc-500">
+              {automationStatus?.running && (
+                <span>
+                  Progress: {automationStatus.progress || 0}/{automationStatus.total || 0} profiles
+                </span>
+              )}
+              {logsUpdatedAt && (
+                <span>Last update: {new Date(logsUpdatedAt).toLocaleTimeString()}</span>
+              )}
+            </div>
+          </div>
+          
+          {/* Status Bar */}
+          {automationStatus?.running && (
+            <div className="px-4 py-2 bg-zinc-800/30 border-b border-zinc-800">
+              <div className="flex items-center gap-4 text-sm">
+                <span className="text-zinc-400">
+                  Current: <span className="text-white font-medium">{automationStatus.current_profile || "Starting..."}</span>
+                </span>
+                <span className="text-zinc-400">
+                  Comments: <span className="text-emerald-400 font-medium">{automationStatus.comments_posted || 0}</span>
+                </span>
+              </div>
+              <div className="mt-2 h-1.5 bg-zinc-700 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 transition-all duration-500"
+                  style={{ width: `${automationStatus.total ? (automationStatus.progress / automationStatus.total) * 100 : 0}%` }}
+                />
+              </div>
+            </div>
+          )}
+          
+          {/* Logs */}
+          <div className="h-64 overflow-y-auto p-4 font-mono text-xs" data-testid="logs-container">
+            {logs.length === 0 ? (
+              <div className="text-center text-zinc-500 py-8">
+                <Terminal className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p>No logs yet</p>
+                <p className="text-xs mt-1">Logs will appear here when the local script is running</p>
+              </div>
+            ) : (
+              <>
+                {logs.map((log, idx) => (
+                  <div key={idx} className={`py-0.5 ${getLogColor(log.message)}`}>
+                    <span className="text-zinc-600 mr-2">[{log.timestamp}]</span>
+                    {log.message}
+                  </div>
+                ))}
+                <div ref={logsEndRef} />
+              </>
+            )}
+          </div>
+        </div>
       </main>
 
       {/* Footer */}
