@@ -658,6 +658,85 @@ async def import_reports_from_file(data: dict):
         logger.error(f"Error importing reports: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# ==============================================================================
+# LIVE LOGS ENDPOINTS - Stream logs from local script to cloud dashboard
+# ==============================================================================
+
+class LogEntry(BaseModel):
+    timestamp: str
+    message: str
+    level: str = "info"  # info, success, error, warning
+
+class LogBatch(BaseModel):
+    logs: List[LogEntry]
+    status: dict = {}  # Current automation status
+
+@api_router.post("/logs")
+async def receive_logs(data: LogBatch):
+    """
+    Receive logs from the local TikTok commenter script.
+    Stores the latest logs and status in the database.
+    """
+    try:
+        # Store logs (keep only last 200)
+        log_doc = {
+            "type": "live_logs",
+            "logs": [log.model_dump() for log in data.logs[-200:]],
+            "status": data.status,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        await db.live_logs.update_one(
+            {"type": "live_logs"},
+            {"$set": log_doc},
+            upsert=True
+        )
+        
+        return {"status": "success", "received": len(data.logs)}
+    except Exception as e:
+        logger.error(f"Error receiving logs: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/logs")
+async def get_logs():
+    """
+    Get the latest logs for the dashboard.
+    """
+    try:
+        log_doc = await db.live_logs.find_one({"type": "live_logs"}, {"_id": 0})
+        
+        if not log_doc:
+            return {
+                "logs": [],
+                "status": {
+                    "running": False,
+                    "current_profile": None,
+                    "progress": 0,
+                    "total": 0,
+                    "comments_posted": 0
+                },
+                "updated_at": None
+            }
+        
+        return {
+            "logs": log_doc.get("logs", []),
+            "status": log_doc.get("status", {}),
+            "updated_at": log_doc.get("updated_at")
+        }
+    except Exception as e:
+        logger.error(f"Error fetching logs: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.delete("/logs")
+async def clear_logs():
+    """Clear all logs."""
+    try:
+        await db.live_logs.delete_many({"type": "live_logs"})
+        return {"status": "cleared"}
+    except Exception as e:
+        logger.error(f"Error clearing logs: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Include the router in the main app
 app.include_router(api_router)
 
