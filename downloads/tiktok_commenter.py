@@ -105,6 +105,45 @@ def save_report_history():
     except Exception as e:
         print(f"Error saving history: {e}")
 
+def send_to_cloud(report_data):
+    """Send a single comment report to the cloud API for real-time dashboard"""
+    try:
+        response = requests.post(
+            f"{CLOUD_API_URL}/reports",
+            json=report_data,
+            timeout=10
+        )
+        if response.status_code == 200:
+            log(f"    ☁️ Synced to cloud dashboard")
+            return True
+        else:
+            log(f"    ⚠ Cloud sync failed: {response.status_code}")
+    except requests.exceptions.ConnectionError:
+        log(f"    ⚠ Cloud offline - saved locally")
+    except Exception as e:
+        log(f"    ⚠ Cloud sync error: {e}")
+    return False
+
+def sync_all_to_cloud():
+    """Sync all local reports to cloud (for bulk sync)"""
+    if not automation_status["report"]:
+        return 0
+    
+    synced = 0
+    try:
+        response = requests.post(
+            f"{CLOUD_API_URL}/reports/bulk",
+            json={"reports": automation_status["report"]},
+            timeout=30
+        )
+        if response.status_code == 200:
+            data = response.json()
+            synced = data.get("inserted", 0)
+            log(f"☁️ Synced {synced} reports to cloud")
+    except Exception as e:
+        log(f"⚠ Bulk sync failed: {e}")
+    return synced
+
 def log(message):
     timestamp = datetime.now().strftime("%H:%M:%S")
     log_entry = f"[{timestamp}] {message}"
