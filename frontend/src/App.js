@@ -35,7 +35,9 @@ const API = `${BACKEND_URL}/api`;
 // Auto-refresh interval in milliseconds
 const REFRESH_INTERVAL = 10000; // 10 seconds
 
-function App() {
+function Dashboard() {
+  const { user, logout, isAuthenticated } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [stats, setStats] = useState(null);
   const [reports, setReports] = useState([]);
   const [totalReports, setTotalReports] = useState(0);
