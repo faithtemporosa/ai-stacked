@@ -121,7 +121,7 @@ post_settings = {
 }
 
 # Post Queue - videos to be posted
-post_queue = []  # [{"video_path": "", "caption": "", "hashtags": [], "profiles": [], "status": "pending"}]
+post_queue = []  # [{"video_path": "", "caption": "", "hashtags": [], "profiles": [], "status": "pending", "scheduled_at": ""}]
 
 post_status = {
     "running": False,
@@ -132,6 +132,9 @@ post_status = {
     "logs": [],
     "history": []
 }
+
+# Scheduler state
+scheduler_running = True  # Background scheduler thread flag
 
 automation_status = {
     "running": False,
