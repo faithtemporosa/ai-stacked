@@ -3834,6 +3834,7 @@ if __name__ == "__main__":
     load_report_history()  # Load past runs
     load_dm_data()  # Load DM data
     load_post_data()  # Load post queue and history
+    load_replies_data()  # Load reply tracking data
     # Start background scheduler thread
     sched_thread = threading.Thread(target=scheduler_loop, daemon=True)
     sched_thread.start()
