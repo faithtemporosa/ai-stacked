@@ -1820,9 +1820,145 @@ def api_clear_report():
     save_report_history()
     return jsonify({"ok": True})
 
+# =============================================================================
+# DM API ROUTES
+# =============================================================================
+
+@app.route('/api/dm/status')
+def api_dm_status():
+    return jsonify({
+        "running": dm_status["running"],
+        "current_profile": dm_status["current_profile"],
+        "progress": dm_status["progress"],
+        "total": dm_status["total"],
+        "dms_sent": dm_status["dms_sent"],
+        "logs": dm_status["logs"][-100:],
+        "report": dm_status["report"][-50:],
+        "settings": dm_settings,
+        "targets": {
+            "specific_users_count": len(dm_targets.get("specific_users", [])),
+            "messages": dm_targets.get("messages", {}),
+            "groups_count": len(dm_targets["messages"].get("groups", {}))
+        }
+    })
+
+@app.route('/api/dm/settings', methods=['POST'])
+def api_dm_settings():
+    data = request.json or {}
+    dm_settings.update({
+        "enabled": data.get("enabled", dm_settings["enabled"]),
+        "max_dms_per_profile": data.get("max_dms_per_profile", dm_settings["max_dms_per_profile"]),
+        "min_delay": data.get("min_delay", dm_settings["min_delay"]),
+        "max_delay": data.get("max_delay", dm_settings["max_delay"]),
+        "target_mode": data.get("target_mode", dm_settings["target_mode"]),
+        "target_hashtag": data.get("target_hashtag", dm_settings["target_hashtag"]),
+        "target_account": data.get("target_account", dm_settings["target_account"]),
+        "target_video_url": data.get("target_video_url", dm_settings["target_video_url"]),
+    })
+    return jsonify({"ok": True, "settings": dm_settings})
+
+@app.route('/api/dm/targets', methods=['GET'])
+def api_dm_targets_get():
+    return jsonify(dm_targets)
+
+@app.route('/api/dm/targets', methods=['POST'])
+def api_dm_targets_set():
+    data = request.json or {}
+    
+    if "specific_users" in data:
+        # Accept list of usernames or comma-separated string
+        users = data["specific_users"]
+        if isinstance(users, str):
+            users = [u.strip().replace("@", "") for u in users.split(",") if u.strip()]
+        dm_targets["specific_users"] = users
+    
+    if "default_message" in data:
+        dm_targets["messages"]["default"] = data["default_message"]
+    
+    if "groups" in data:
+        dm_targets["messages"]["groups"] = data["groups"]
+    
+    save_dm_data()
+    return jsonify({"ok": True, "targets": dm_targets})
+
+@app.route('/api/dm/add-group', methods=['POST'])
+def api_dm_add_group():
+    data = request.json or {}
+    group_name = data.get("name", "").strip()
+    users = data.get("users", [])
+    message = data.get("message", dm_targets["messages"]["default"])
+    
+    if not group_name:
+        return jsonify({"error": "Group name required"}), 400
+    
+    if isinstance(users, str):
+        users = [u.strip().replace("@", "") for u in users.split(",") if u.strip()]
+    
+    dm_targets["messages"]["groups"][group_name] = {
+        "users": users,
+        "message": message
+    }
+    
+    save_dm_data()
+    return jsonify({"ok": True, "group": group_name})
+
+@app.route('/api/dm/delete-group', methods=['POST'])
+def api_dm_delete_group():
+    data = request.json or {}
+    group_name = data.get("name", "")
+    
+    if group_name in dm_targets["messages"]["groups"]:
+        del dm_targets["messages"]["groups"][group_name]
+        save_dm_data()
+    
+    return jsonify({"ok": True})
+
+@app.route('/api/dm/start', methods=['POST'])
+def api_dm_start():
+    if dm_status["running"]:
+        return jsonify({"error": "DM automation already running"}), 400
+    
+    success = start_dm_automation()
+    return jsonify({"ok": success})
+
+@app.route('/api/dm/stop', methods=['POST'])
+def api_dm_stop():
+    stop_dm_automation()
+    return jsonify({"ok": True})
+
+@app.route('/api/dm/clear-logs', methods=['POST'])
+def api_dm_clear_logs():
+    dm_status["logs"] = []
+    return jsonify({"ok": True})
+
+@app.route('/api/dm/clear-history', methods=['POST'])
+def api_dm_clear_history():
+    dm_status["report"] = []
+    dm_status["sent_to"] = set()
+    dm_status["dms_sent"] = 0
+    save_dm_data()
+    return jsonify({"ok": True})
+
+@app.route('/api/dm/export', methods=['GET'])
+def api_dm_export():
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Date", "Time", "Profile", "Username", "Message", "Status"])
+    
+    for r in dm_status["report"]:
+        ts = r.get("timestamp", "")
+        date, time_str = (ts.split(" ") + [""])[:2]
+        writer.writerow([date, time_str, r.get("profile", ""), r.get("username", ""), r.get("message", ""), r.get("status", "")])
+    
+    return output.getvalue(), 200, {
+        'Content-Type': 'text/csv',
+        'Content-Disposition': f'attachment; filename=dm_history_{datetime.now().strftime("%Y%m%d")}.csv'
+    }
+
 if __name__ == "__main__":
     print("=" * 50)
     print("  TikTok Commenter - http://localhost:9090")
     print("=" * 50)
     load_report_history()  # Load past runs
+    load_dm_data()  # Load DM data
     app.run(host="0.0.0.0", port=9090, debug=False)
