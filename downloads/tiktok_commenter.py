@@ -1026,31 +1026,96 @@ def start_dm_automation():
         dm_log(f"✗ Already at total daily limit ({dm_settings['max_dms_total']} DMs)")
         dm_status["running"] = False
         return False
-        dm_log("✗ No profiles loaded!")
-        dm_status["running"] = False
-        return False
     
     def run():
+        total_dms = 0
         try:
-            for i, profile in enumerate(profiles[:dm_settings.get("parallel_browsers", 2)]):
-                if not dm_status["running"]:
+            # Sort profiles by name (lowest number first)
+            sorted_profiles = sorted(profiles, key=lambda p: p.get("name", p.get("user_id", "")))
+            parallel = dm_settings.get("parallel_browsers", 2)
+            max_total = dm_settings["max_dms_total"]
+            max_per_profile = dm_settings["max_dms_per_profile"]
+            
+            dm_log(f"📋 Processing {len(sorted_profiles)} profiles (sorted by name)")
+            dm_log(f"🔄 Running {parallel} profiles at a time")
+            
+            profile_index = 0
+            
+            while profile_index < len(sorted_profiles) and dm_status["running"]:
+                # Check if we've hit total daily limit
+                if get_total_dms_today() >= max_total:
+                    dm_log(f"🎯 Total daily limit reached ({max_total} DMs)")
                     break
                 
-                profile_id = profile.get("user_id")
-                profile_name = profile.get("name", profile_id)
+                # Get next batch of profiles (2 at a time)
+                batch = sorted_profiles[profile_index:profile_index + parallel]
+                dm_log(f"")
+                dm_log(f"📦 Batch {profile_index // parallel + 1}: {[p.get('name', p.get('user_id')) for p in batch]}")
                 
-                dm_status["progress"] = i + 1
-                dm_status["total"] = min(len(profiles), dm_settings.get("parallel_browsers", 2))
+                # Process each profile in batch sequentially (but with 2 browsers concept)
+                batch_has_work = False
+                for profile in batch:
+                    if not dm_status["running"]:
+                        break
+                    
+                    profile_id = profile.get("user_id")
+                    profile_name = profile.get("name", profile_id)
+                    
+                    # Skip if profile already at daily limit
+                    if get_dms_today(profile_name) >= max_per_profile:
+                        dm_log(f"  ⏭ {profile_name} already at limit ({max_per_profile}), skipping")
+                        dm_status["profiles_completed"].append(profile_name)
+                        continue
+                    
+                    # Skip if total limit reached
+                    if get_total_dms_today() >= max_total:
+                        dm_log(f"  🎯 Total daily limit reached")
+                        break
+                    
+                    dm_status["current_profile_index"] = profile_index
+                    dms_sent = process_dm_profile(profile_id, profile_name)
+                    total_dms += dms_sent
+                    
+                    if dms_sent > 0:
+                        batch_has_work = True
+                    
+                    # Mark as completed if at limit
+                    if get_dms_today(profile_name) >= max_per_profile:
+                        dm_status["profiles_completed"].append(profile_name)
+                    
+                    # Wait between profiles
+                    if dm_status["running"] and batch.index(profile) < len(batch) - 1:
+                        delay = random.randint(15, 30)
+                        dm_log(f"  ⏳ Switching profile in {delay}s...")
+                        for _ in range(delay):
+                            if not dm_status["running"]:
+                                break
+                            time.sleep(1)
                 
-                process_dm_profile(profile_id, profile_name)
+                profile_index += parallel
                 
+                # Wait between batches
+                if dm_status["running"] and profile_index < len(sorted_profiles) and batch_has_work:
+                    delay = random.randint(30, 60)
+                    dm_log(f"")
+                    dm_log(f"⏳ Next batch in {delay}s...")
+                    for _ in range(delay):
+                        if not dm_status["running"]:
+                            break
+                        time.sleep(1)
+            
         except Exception as e:
             dm_log(f"✗ Fatal error: {e}")
+            traceback.print_exc()
         finally:
             dm_status["running"] = False
             dm_status["current_profile"] = None
+            dm_log("")
             dm_log("═" * 50)
-            dm_log(f"DM Automation Complete. Total DMs sent: {dm_status['dms_sent']}")
+            dm_log(f"✅ DM Outreach Complete!")
+            dm_log(f"   Total DMs sent this session: {total_dms}")
+            dm_log(f"   Total DMs sent today: {get_total_dms_today()}")
+            dm_log(f"   Profiles completed: {len(dm_status['profiles_completed'])}")
             dm_log("═" * 50)
     
     threading.Thread(target=run, daemon=True).start()
