@@ -2592,61 +2592,28 @@ def api_dm_export():
     }
 
 # =============================================================================
-# POST API ROUTES
+# REPOST API ROUTES
 # =============================================================================
 
 @app.route('/api/post/status')
 def api_post_status():
-    pending_count = len([p for p in post_queue if p.get("status") == "pending"])
-    scheduled_count = len([p for p in post_queue if p.get("status") == "pending" and p.get("scheduled_at")])
+    today = datetime.now().strftime("%Y-%m-%d")
+    day_name = datetime.now().strftime("%A")
+    is_monday = datetime.now().weekday() == 0
     return jsonify({
         "running": post_status["running"],
         "current_profile": post_status["current_profile"],
         "progress": post_status["progress"],
         "total": post_status["total"],
         "posts_made": post_status["posts_made"],
-        "queue_pending": pending_count,
-        "scheduled_count": scheduled_count,
-        "queue": post_queue[-50:],
+        "last_run": post_status.get("last_run"),
+        "next_run": post_status.get("next_run"),
+        "day_name": day_name,
+        "content_type": "brand" if is_monday else "social",
+        "max_per_day": post_settings["max_reposts_per_day"],
         "history": post_status["history"][-50:],
         "logs": post_status["logs"][-100:]
     })
-
-@app.route('/api/post/queue', methods=['POST'])
-def api_post_queue_add():
-    data = request.json or {}
-    video_path = data.get("video_path", "").strip()
-    if not video_path:
-        return jsonify({"ok": False, "error": "Video path required"}), 400
-    
-    post_item = {
-        "video_path": video_path,
-        "caption": data.get("caption", ""),
-        "hashtags": data.get("hashtags", []),
-        "profiles": data.get("profiles", []),
-        "status": "pending",
-        "scheduled_at": data.get("scheduled_at", ""),
-        "added_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
-    post_queue.append(post_item)
-    save_post_data()
-    return jsonify({"ok": True, "queue_size": len(post_queue)})
-
-@app.route('/api/post/queue/remove', methods=['POST'])
-def api_post_queue_remove():
-    data = request.json or {}
-    idx = data.get("index", -1)
-    if 0 <= idx < len(post_queue):
-        post_queue.pop(idx)
-        save_post_data()
-    return jsonify({"ok": True})
-
-@app.route('/api/post/queue/clear', methods=['POST'])
-def api_post_queue_clear():
-    global post_queue
-    post_queue = [p for p in post_queue if p.get("status") == "posted"]
-    save_post_data()
-    return jsonify({"ok": True})
 
 @app.route('/api/post/settings', methods=['POST'])
 def api_post_settings():
@@ -2655,13 +2622,15 @@ def api_post_settings():
         post_settings["min_delay"] = data["min_delay"]
     if "max_delay" in data:
         post_settings["max_delay"] = data["max_delay"]
-    return jsonify({"ok": True})
+    if "max_reposts_per_day" in data:
+        post_settings["max_reposts_per_day"] = max(1, min(5, data["max_reposts_per_day"]))
+    return jsonify({"ok": True, "settings": post_settings})
 
 @app.route('/api/post/start', methods=['POST'])
 def api_post_start():
     if post_status["running"]:
-        return jsonify({"error": "Post automation already running"}), 400
-    success = start_post_automation()
+        return jsonify({"error": "Repost automation already running"}), 400
+    success = start_repost_automation()
     return jsonify({"ok": success})
 
 @app.route('/api/post/stop', methods=['POST'])
@@ -2685,16 +2654,14 @@ def api_post_clear_history():
 def api_post_export():
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["Date", "Time", "Profile", "Video", "Caption", "Status"])
-    
+    writer.writerow(["Date", "Time", "Profile", "Video", "Content Type", "Status"])
     for r in post_status["history"]:
         ts = r.get("timestamp", "")
         date, time_str = (ts.split(" ") + [""])[:2]
-        writer.writerow([date, time_str, r.get("profile", ""), r.get("video", ""), r.get("caption", ""), r.get("status", "")])
-    
+        writer.writerow([date, time_str, r.get("profile", ""), r.get("video", ""), r.get("content_type", ""), r.get("status", "")])
     return output.getvalue(), 200, {
         'Content-Type': 'text/csv',
-        'Content-Disposition': f'attachment; filename=post_history_{datetime.now().strftime("%Y%m%d")}.csv'
+        'Content-Disposition': f'attachment; filename=repost_history_{datetime.now().strftime("%Y%m%d")}.csv'
     }
 
 if __name__ == "__main__":
