@@ -277,6 +277,59 @@ def sync_logs_to_cloud():
     except:
         pass  # Silently fail - don't interrupt main process
 
+def sync_dm_to_cloud(dm_report_entry):
+    """Sync a single DM report to Supabase"""
+    if not HAS_SUPABASE:
+        return
+    try:
+        supabase.table('dm_reports').insert({
+            'timestamp': dm_report_entry.get('timestamp'),
+            'profile': dm_report_entry.get('profile'),
+            'username': dm_report_entry.get('username'),
+            'message': dm_report_entry.get('message', '')[:500],
+            'status': dm_report_entry.get('status', 'unknown')
+        }).execute()
+    except:
+        pass
+
+def sync_post_to_cloud(post_entry):
+    """Sync a single post report to Supabase"""
+    if not HAS_SUPABASE:
+        return
+    try:
+        supabase.table('post_reports').insert({
+            'timestamp': post_entry.get('timestamp'),
+            'profile': post_entry.get('profile'),
+            'video': post_entry.get('video', ''),
+            'caption': post_entry.get('caption', '')[:500],
+            'status': post_entry.get('status', 'unknown')
+        }).execute()
+    except:
+        pass
+
+def scheduler_loop():
+    """Background thread: checks for scheduled posts that are due"""
+    while scheduler_running:
+        try:
+            now = datetime.now()
+            for post in post_queue:
+                if post.get("status") != "pending":
+                    continue
+                scheduled_at = post.get("scheduled_at", "")
+                if not scheduled_at:
+                    continue
+                try:
+                    sched_time = datetime.strptime(scheduled_at, "%Y-%m-%d %H:%M")
+                    if now >= sched_time and not post_status["running"]:
+                        post_log(f"⏰ Scheduled post due: {post.get('caption', 'No caption')[:40]}...")
+                        start_post_automation()
+                        break
+                except ValueError:
+                    pass
+        except:
+            pass
+        time.sleep(30)  # Check every 30 seconds
+
 # =============================================================================
 # DM FUNCTIONS
 # =============================================================================
