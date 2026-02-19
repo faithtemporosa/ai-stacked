@@ -394,12 +394,12 @@ def scheduler_loop():
         time.sleep(60)  # Check every minute
 
 # =============================================================================
-# DM FUNCTIONS
+# DM FUNCTIONS - Brand Outreach for Bump Syndicate
 # =============================================================================
 
 def load_dm_data():
-    """Load DM targets and history from files"""
-    global dm_targets, dm_status
+    """Load DM targets, tracker and history from files"""
+    global dm_targets, dm_status, dm_tracker
     
     # Load targets
     try:
@@ -407,10 +407,21 @@ def load_dm_data():
             data = json.load(f)
             dm_targets.update(data)
             print(f"✓ Loaded {len(dm_targets.get('specific_users', []))} DM targets")
+            print(f"✓ Loaded {len(dm_targets.get('scraped_brands', []))} scraped brands")
     except FileNotFoundError:
         print("No DM targets file, starting fresh")
     except Exception as e:
         print(f"Error loading DM targets: {e}")
+    
+    # Load DM tracker (daily counts per profile)
+    try:
+        with open(DM_TRACKER_FILE, 'r') as f:
+            dm_tracker = json.load(f)
+            print(f"✓ Loaded DM tracker ({len(dm_tracker)} profiles)")
+    except FileNotFoundError:
+        pass
+    except Exception as e:
+        print(f"Error loading DM tracker: {e}")
     
     # Load history
     try:
