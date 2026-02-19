@@ -3268,6 +3268,170 @@ DASHBOARD_HTML = """
         function clrDmLog(){fetch('/api/dm/clear-logs',{method:'POST'});document.getElementById('dm-logs').innerHTML='Cleared';}
         async function clrDmHistory(){if(!confirm('Clear all DM history?'))return;await fetch('/api/dm/clear-history',{method:'POST'});dmStatus.report=[];renderDmReport([]);}
         function expDmCSV(){window.open('/api/dm/export','_blank');}
+        
+        // ========== REPLIES TAB FUNCTIONS ==========
+        let replyData = {drafts: [], approved: [], sent: []};
+        
+        async function refreshReplies() {
+            try {
+                const r = await fetch('/api/replies/status');
+                const d = await r.json();
+                replyData = d;
+                
+                document.getElementById('reply-pending').textContent = d.pending?.length || 0;
+                document.getElementById('reply-drafts').textContent = d.drafts?.length || 0;
+                document.getElementById('reply-approved').textContent = d.approved?.length || 0;
+                document.getElementById('reply-sent').textContent = d.sent?.length || 0;
+                document.getElementById('draft-count').textContent = d.drafts?.length || 0;
+                document.getElementById('approved-count').textContent = d.approved?.length || 0;
+                document.getElementById('sent-count').textContent = d.sent?.length || 0;
+                
+                document.getElementById('reply-status').textContent = d.checking 
+                    ? '🔄 ' + (d.logs?.slice(-1)[0] || 'Processing...') 
+                    : 'Last check: ' + (d.last_check || 'Never');
+                
+                // Render draft replies
+                renderDraftReplies(d.drafts || []);
+                renderApprovedReplies(d.approved || []);
+                renderSentReplies(d.sent || []);
+                
+                // Update logs
+                if (d.logs && d.logs.length) {
+                    document.getElementById('reply-logs').innerHTML = d.logs.map(l => 
+                        '<div style="color:' + (l.includes('✗') ? '#f87171' : l.includes('✓') ? '#4ade80' : l.includes('⚠') ? '#fbbf24' : '#a1a1aa') + '">' + l + '</div>'
+                    ).join('');
+                }
+            } catch(e) { console.error(e); }
+        }
+        
+        function renderDraftReplies(drafts) {
+            const container = document.getElementById('draft-replies-container');
+            if (!drafts || drafts.length === 0) {
+                container.innerHTML = '<div style="text-align:center;color:#71717a;padding:20px;">No draft replies. Click "Check for Replies" to find new messages.</div>';
+                return;
+            }
+            
+            container.innerHTML = drafts.map((d, i) => `
+                <div style="background:#27272a;border:1px solid #3f3f46;border-radius:8px;padding:12px;margin-bottom:10px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <div>
+                            <span style="color:#4ade80;font-weight:bold;">@${d.username}</span>
+                            <span style="color:#71717a;font-size:12px;margin-left:8px;">via ${d.profile}</span>
+                        </div>
+                        <span style="color:#71717a;font-size:11px;">${d.received_at}</span>
+                    </div>
+                    <div style="background:#1c1c1e;border-radius:6px;padding:8px;margin-bottom:8px;">
+                        <div style="color:#71717a;font-size:11px;margin-bottom:4px;">Their message:</div>
+                        <div style="color:#fbbf24;font-size:13px;">"${d.their_message}"</div>
+                    </div>
+                    <div style="margin-bottom:8px;">
+                        <div style="color:#71717a;font-size:11px;margin-bottom:4px;">AI Draft Reply:</div>
+                        <textarea id="draft-${i}" style="width:100%;height:60px;background:#18181b;border:1px solid #3f3f46;color:#4ade80;border-radius:6px;padding:8px;font-size:13px;">${d.draft_message}</textarea>
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                        <button class="btn btn-success" onclick="approveDraft(${i})" style="padding:6px 16px;">✓ Approve</button>
+                        <button class="btn btn-primary" onclick="regenerateDraft(${i})" style="padding:6px 16px;">🔄 Regenerate</button>
+                        <button class="btn btn-danger" onclick="rejectDraft(${i})" style="padding:6px 16px;">✗ Reject</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function renderApprovedReplies(approved) {
+            const container = document.getElementById('approved-replies-container');
+            if (!approved || approved.length === 0) {
+                container.innerHTML = '<div style="text-align:center;color:#71717a;padding:20px;">No approved replies yet.</div>';
+                return;
+            }
+            
+            container.innerHTML = approved.map((a, i) => `
+                <div style="background:#14532d;border:1px solid #16a34a;border-radius:8px;padding:12px;margin-bottom:10px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <span style="color:#4ade80;font-weight:bold;">@${a.username}</span>
+                            <span style="color:#86efac;font-size:12px;margin-left:8px;">via ${a.profile}</span>
+                        </div>
+                        <button class="btn btn-secondary" onclick="unapprove(${i})" style="padding:4px 12px;font-size:12px;">Undo</button>
+                    </div>
+                    <div style="color:#86efac;font-size:13px;margin-top:8px;">"${a.draft_message}"</div>
+                </div>
+            `).join('');
+        }
+        
+        function renderSentReplies(sent) {
+            const tbody = document.getElementById('sent-replies-table');
+            if (!sent || sent.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#71717a">No sent replies yet</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = sent.slice().reverse().slice(0, 50).map(s => `
+                <tr>
+                    <td>${s.sent_at || ''}</td>
+                    <td>${s.profile}</td>
+                    <td>@${s.username}</td>
+                    <td title="${s.their_message}">${s.their_message?.substring(0, 30)}...</td>
+                    <td title="${s.draft_message}">${s.draft_message?.substring(0, 30)}...</td>
+                </tr>
+            `).join('');
+        }
+        
+        async function checkReplies() {
+            document.getElementById('btn-check-replies').disabled = true;
+            document.getElementById('btn-check-replies').textContent = '⏳ Checking...';
+            await fetch('/api/replies/check', {method: 'POST'});
+            setTimeout(() => {
+                document.getElementById('btn-check-replies').disabled = false;
+                document.getElementById('btn-check-replies').textContent = '📥 Check for Replies';
+            }, 5000);
+        }
+        
+        async function approveDraft(index) {
+            const editedMsg = document.getElementById('draft-' + index)?.value || replyData.drafts[index].draft_message;
+            await fetch('/api/replies/approve', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({index: index, message: editedMsg})
+            });
+            refreshReplies();
+        }
+        
+        async function rejectDraft(index) {
+            await fetch('/api/replies/reject', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({index: index})});
+            refreshReplies();
+        }
+        
+        async function regenerateDraft(index) {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = '⏳...';
+            await fetch('/api/replies/regenerate', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({index: index})});
+            setTimeout(() => { btn.disabled = false; btn.textContent = '🔄 Regenerate'; refreshReplies(); }, 3000);
+        }
+        
+        async function unapprove(index) {
+            await fetch('/api/replies/unapprove', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({index: index})});
+            refreshReplies();
+        }
+        
+        async function sendApproved() {
+            if (!confirm('Send all approved replies? This will open browsers and send messages.')) return;
+            document.getElementById('btn-send-approved').disabled = true;
+            document.getElementById('btn-send-approved').textContent = '⏳ Sending...';
+            await fetch('/api/replies/send', {method: 'POST'});
+            setTimeout(() => {
+                document.getElementById('btn-send-approved').disabled = false;
+                document.getElementById('btn-send-approved').textContent = '📤 Send All Approved';
+            }, 5000);
+        }
+        
+        function clrReplyLog() {
+            fetch('/api/replies/clear-logs', {method: 'POST'});
+            document.getElementById('reply-logs').innerHTML = 'Cleared';
+        }
+        
+        // Auto-refresh replies tab
+        setInterval(() => { if(document.getElementById('tab-replies').style.display != 'none') refreshReplies(); }, 3000);
     </script>
 </body>
 </html>
