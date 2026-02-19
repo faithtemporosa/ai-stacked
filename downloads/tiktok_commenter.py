@@ -2785,20 +2785,29 @@ def api_clear_report():
 
 @app.route('/api/dm/status')
 def api_dm_status():
+    today = datetime.now().strftime("%Y-%m-%d")
+    # Count DMs sent today
+    dms_today = sum(1 for r in dm_status["report"] if r.get("timestamp", "").startswith(today))
+    
     return jsonify({
         "running": dm_status["running"],
         "current_profile": dm_status["current_profile"],
+        "current_profile_index": dm_status.get("current_profile_index", 0),
+        "profiles_completed": dm_status.get("profiles_completed", []),
         "progress": dm_status["progress"],
         "total": dm_status["total"],
         "dms_sent": dm_status["dms_sent"],
+        "dms_sent_today": dms_today,
         "logs": dm_status["logs"][-100:],
         "report": dm_status["report"][-50:],
         "settings": dm_settings,
         "targets": {
             "specific_users_count": len(dm_targets.get("specific_users", [])),
+            "scraped_brands_count": len(dm_targets.get("scraped_brands", [])),
             "messages": dm_targets.get("messages", {}),
             "groups_count": len(dm_targets["messages"].get("groups", {}))
-        }
+        },
+        "search_queries": DM_BRAND_SEARCH_QUERIES[:10]
     })
 
 @app.route('/api/dm/settings', methods=['POST'])
@@ -2806,15 +2815,25 @@ def api_dm_settings():
     data = request.json or {}
     dm_settings.update({
         "enabled": data.get("enabled", dm_settings["enabled"]),
-        "max_dms_per_profile": data.get("max_dms_per_profile", dm_settings["max_dms_per_profile"]),
+        "max_dms_per_profile": min(100, data.get("max_dms_per_profile", dm_settings["max_dms_per_profile"])),
+        "max_dms_total": min(500, data.get("max_dms_total", dm_settings.get("max_dms_total", 250))),
+        "parallel_browsers": data.get("parallel_browsers", dm_settings.get("parallel_browsers", 2)),
         "min_delay": data.get("min_delay", dm_settings["min_delay"]),
         "max_delay": data.get("max_delay", dm_settings["max_delay"]),
         "target_mode": data.get("target_mode", dm_settings["target_mode"]),
-        "target_hashtag": data.get("target_hashtag", dm_settings["target_hashtag"]),
-        "target_account": data.get("target_account", dm_settings["target_account"]),
-        "target_video_url": data.get("target_video_url", dm_settings["target_video_url"]),
+        "target_hashtag": data.get("target_hashtag", dm_settings.get("target_hashtag", "")),
+        "target_account": data.get("target_account", dm_settings.get("target_account", "")),
+        "target_video_url": data.get("target_video_url", dm_settings.get("target_video_url", "")),
     })
     return jsonify({"ok": True, "settings": dm_settings})
+
+@app.route('/api/dm/message', methods=['POST'])
+def api_dm_message():
+    data = request.json or {}
+    if "message" in data:
+        dm_targets["messages"]["default"] = data["message"]
+        save_dm_data()
+    return jsonify({"ok": True})
 
 @app.route('/api/dm/targets', methods=['GET'])
 def api_dm_targets_get():
