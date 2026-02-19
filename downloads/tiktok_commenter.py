@@ -2327,7 +2327,7 @@ DASHBOARD_HTML = """
                         <div style="font-size:12px;color:#a1a1aa;line-height:1.8;">
                             <b style="color:#4ade80;">1.</b> Searches TikTok for brands/businesses needing social media help<br>
                             <b style="color:#60a5fa;">2.</b> Sends personalized DM about Bump Syndicate services<br>
-                            <b style="color:#fbbf24;">3.</b> Max <span id="dm-limit-profile">100</span> DMs per profile, <span id="dm-limit-total">250</span> total per day<br>
+                            <b style="color:#fbbf24;">3.</b> Max <span id="dm-limit-profile">100</span> DMs per profile, <span id="dm-limit-total">2500</span> total per day<br>
                             <b style="color:#c4b5fd;">4.</b> Processes 2 profiles at a time, starting from lowest number
                         </div>
                     </div>
