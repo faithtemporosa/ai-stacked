@@ -80,33 +80,77 @@ settings = {
     "target_hashtag": "",  # Target hashtag to search (e.g., #socialmedia)
 }
 
-# DM Settings
+# DM Settings - Updated for brand outreach
 dm_settings = {
     "enabled": False,
-    "max_dms_per_profile": 50,
-    "min_delay": 60,
-    "max_delay": 120,
-    "target_mode": "specific",  # specific, commenters, followers, hashtag
+    "max_dms_per_profile": 100,  # Max 100 DMs per profile per day
+    "max_dms_total": 250,  # Max 250 DMs total per day
+    "parallel_browsers": 2,  # 2 profiles open at the same time
+    "min_delay": 45,  # Seconds between DMs
+    "max_delay": 90,
+    "target_mode": "brand_search",  # brand_search, specific, hashtag, commenters, followers
     "target_hashtag": "",
-    "target_account": "",  # For followers mode
-    "target_video_url": "",  # For commenters mode
+    "target_account": "",
+    "target_video_url": "",
 }
+
+# Search queries to find brands/companies needing social media management
+DM_BRAND_SEARCH_QUERIES = [
+    "small business owner",
+    "startup founder",
+    "entrepreneur life",
+    "new business",
+    "local business",
+    "ecommerce brand",
+    "clothing brand",
+    "beauty brand",
+    "fitness brand",
+    "restaurant owner",
+    "salon owner",
+    "real estate agent",
+    "coach business",
+    "consulting business",
+    "agency owner",
+    "marketing agency",
+    "brand launch",
+    "product launch",
+    "dropshipping",
+    "amazon fba",
+    "etsy seller",
+    "shopify store",
+    "boutique owner",
+    "jewelry brand",
+    "skincare brand",
+    "supplement brand",
+    "food brand",
+    "beverage brand",
+    "tech startup",
+    "saas founder",
+]
 
 # DM Targets and Messages
 dm_targets = {
-    "specific_users": [],  # List of usernames
+    "specific_users": [],
+    "scraped_brands": [],  # Brands found via search
     "messages": {
-        "default": "Hey! Check out bumpconnect.xyz for amazing creator tools!",
-        "groups": {}  # {"group_name": {"users": [], "message": "..."}}
+        "default": "Hey! 👋 I noticed your brand and love what you're doing! We help businesses like yours grow on social media. Check out bumpsyndicate.xyz - we'd love to help you scale! 🚀",
+        "groups": {}
     }
 }
+
+# Daily DM tracking per profile: {"profile_name": {"2026-02-19": 50}}
+DM_TRACKER_FILE = "tiktok_dm_tracker.json"
+dm_tracker = {}
 
 dm_status = {
     "running": False,
     "current_profile": None,
+    "current_profile_index": 0,
+    "profiles_completed": [],
     "progress": 0,
     "total": 0,
     "dms_sent": 0,
+    "dms_sent_today": 0,
     "logs": [],
     "report": [],
     "sent_to": set()  # Track who we've already DMed
