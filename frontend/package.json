@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "ajv": "^8.12.0",
     "@craco/craco": "^7.1.0",
     "@supabase/supabase-js": "^2.39.0",
     "axios": "^1.6.0",
