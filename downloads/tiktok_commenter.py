@@ -703,6 +703,12 @@ def run_dm_automation(ws_endpoint, profile_name):
                         "status": "sent"
                     })
                     
+                    # Sync DM to cloud
+                    try:
+                        threading.Thread(target=sync_dm_to_cloud, args=(dm_status["report"][-1],), daemon=True).start()
+                    except:
+                        pass
+                    
                     save_dm_data()
                     
                     # Wait between DMs
