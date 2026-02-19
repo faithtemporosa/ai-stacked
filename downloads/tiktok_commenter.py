@@ -251,7 +251,471 @@ def sync_logs_to_cloud():
     except:
         pass  # Silently fail - don't interrupt main process
 
-def fetch_adspower_profiles():
+# =============================================================================
+# DM FUNCTIONS
+# =============================================================================
+
+def load_dm_data():
+    """Load DM targets and history from files"""
+    global dm_targets, dm_status
+    
+    # Load targets
+    try:
+        with open(DM_TARGETS_FILE, 'r') as f:
+            data = json.load(f)
+            dm_targets.update(data)
+            print(f"✓ Loaded {len(dm_targets.get('specific_users', []))} DM targets")
+    except FileNotFoundError:
+        print("No DM targets file, starting fresh")
+    except Exception as e:
+        print(f"Error loading DM targets: {e}")
+    
+    # Load history
+    try:
+        with open(DM_REPORT_FILE, 'r') as f:
+            data = json.load(f)
+            dm_status["report"] = data.get("report", [])
+            dm_status["sent_to"] = set(data.get("sent_to", []))
+            dm_status["dms_sent"] = len(dm_status["report"])
+            print(f"✓ Loaded {len(dm_status['report'])} DM history")
+    except FileNotFoundError:
+        pass
+    except Exception as e:
+        print(f"Error loading DM history: {e}")
+
+def save_dm_data():
+    """Save DM targets and history"""
+    try:
+        with open(DM_TARGETS_FILE, 'w') as f:
+            json.dump(dm_targets, f, indent=2)
+    except Exception as e:
+        print(f"Error saving DM targets: {e}")
+    
+    try:
+        with open(DM_REPORT_FILE, 'w') as f:
+            json.dump({
+                "report": dm_status["report"],
+                "sent_to": list(dm_status["sent_to"]),
+                "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }, f, indent=2)
+    except Exception as e:
+        print(f"Error saving DM history: {e}")
+
+def dm_log(message):
+    """Log for DM operations"""
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    log_entry = f"[{timestamp}] [DM] {message}"
+    dm_status["logs"].append(log_entry)
+    print(log_entry)
+    if len(dm_status["logs"]) > 200:
+        dm_status["logs"] = dm_status["logs"][-200:]
+
+def get_dm_message(username):
+    """Get the appropriate DM message for a user"""
+    # Check if user is in a specific group
+    for group_name, group_data in dm_targets["messages"].get("groups", {}).items():
+        if username in group_data.get("users", []):
+            return group_data.get("message", dm_targets["messages"]["default"])
+    return dm_targets["messages"]["default"]
+
+def send_dm_to_user(page, username, message):
+    """Send a DM to a specific user using Playwright"""
+    try:
+        dm_log(f"  → Navigating to @{username}'s profile...")
+        page.goto(f"https://www.tiktok.com/@{username}", wait_until="domcontentloaded", timeout=30000)
+        time.sleep(3)
+        
+        # Check if profile exists
+        if "couldn't find this account" in page.content().lower():
+            dm_log(f"  ⚠ User @{username} not found")
+            return False, "user_not_found"
+        
+        # Click message/DM button
+        dm_log(f"  → Opening DM...")
+        result = page.evaluate('''() => {
+            // Look for message button
+            const selectors = [
+                '[data-e2e="message-button"]',
+                '[data-e2e="profile-message"]',
+                'button[aria-label*="message" i]',
+                'button[aria-label*="Message" i]',
+                '[class*="MessageButton"]',
+                '[class*="message-button"]'
+            ];
+            
+            for (let sel of selectors) {
+                const btn = document.querySelector(sel);
+                if (btn && btn.offsetParent) {
+                    btn.click();
+                    return {success: true, method: sel};
+                }
+            }
+            
+            // Try finding by text
+            const buttons = document.querySelectorAll('button, div[role="button"]');
+            for (let btn of buttons) {
+                if (btn.textContent.toLowerCase().includes('message') && btn.offsetParent) {
+                    btn.click();
+                    return {success: true, method: 'text-search'};
+                }
+            }
+            
+            return {success: false};
+        }''')
+        
+        if not result.get('success'):
+            dm_log(f"  ⚠ Could not find message button for @{username}")
+            return False, "no_dm_button"
+        
+        dm_log(f"  ✓ DM window opened ({result.get('method')})")
+        time.sleep(2)
+        
+        # Find and click message input
+        input_result = page.evaluate('''() => {
+            const selectors = [
+                '[data-e2e="message-input"]',
+                '[class*="DivInputContainer"] [contenteditable="true"]',
+                '[class*="MessageInput"] [contenteditable="true"]',
+                'div[contenteditable="true"][data-text="true"]',
+                'div[contenteditable="true"]'
+            ];
+            
+            for (let sel of selectors) {
+                const el = document.querySelector(sel);
+                if (el && el.offsetParent) {
+                    el.click();
+                    el.focus();
+                    return {success: true, method: sel};
+                }
+            }
+            return {success: false};
+        }''')
+        
+        if not input_result.get('success'):
+            dm_log(f"  ⚠ Could not find message input")
+            return False, "no_input"
+        
+        dm_log(f"  → Typing message...")
+        time.sleep(0.5)
+        
+        # Type the message
+        page.keyboard.type(message, delay=random.randint(30, 60))
+        time.sleep(1)
+        
+        # Send the message
+        dm_log(f"  → Sending...")
+        send_result = page.evaluate('''() => {
+            const selectors = [
+                '[data-e2e="send-message"]',
+                '[class*="SendButton"]',
+                '[class*="send-button"]',
+                'button[aria-label*="send" i]'
+            ];
+            
+            for (let sel of selectors) {
+                const btn = document.querySelector(sel);
+                if (btn && btn.offsetParent) {
+                    btn.click();
+                    return {success: true, method: sel};
+                }
+            }
+            return {success: false};
+        }''')
+        
+        if not send_result.get('success'):
+            dm_log(f"  → Trying Enter key...")
+            page.keyboard.press("Enter")
+        
+        time.sleep(2)
+        dm_log(f"  ✓ DM sent to @{username}")
+        return True, "success"
+        
+    except Exception as e:
+        dm_log(f"  ✗ Error sending DM to @{username}: {str(e)[:100]}")
+        return False, str(e)
+
+def collect_users_from_hashtag(page, hashtag, limit=100):
+    """Collect usernames from a hashtag page"""
+    users = set()
+    dm_log(f"→ Collecting users from #{hashtag}...")
+    
+    try:
+        page.goto(f"https://www.tiktok.com/tag/{hashtag}", wait_until="domcontentloaded", timeout=30000)
+        time.sleep(3)
+        
+        for scroll in range(10):  # Scroll multiple times
+            new_users = page.evaluate('''() => {
+                const users = new Set();
+                // Find all user links
+                document.querySelectorAll('a[href*="/@"]').forEach(a => {
+                    const match = a.href.match(/@([a-zA-Z0-9_.]+)/);
+                    if (match) users.add(match[1]);
+                });
+                return Array.from(users);
+            }''')
+            
+            users.update(new_users)
+            
+            if len(users) >= limit:
+                break
+            
+            page.keyboard.press("ArrowDown")
+            page.keyboard.press("ArrowDown")
+            time.sleep(1)
+        
+        dm_log(f"✓ Found {len(users)} users from #{hashtag}")
+        return list(users)[:limit]
+    except Exception as e:
+        dm_log(f"✗ Error collecting from hashtag: {e}")
+        return []
+
+def collect_users_from_comments(page, video_url, limit=100):
+    """Collect usernames from video comments"""
+    users = set()
+    dm_log(f"→ Collecting commenters from video...")
+    
+    try:
+        page.goto(video_url, wait_until="domcontentloaded", timeout=30000)
+        time.sleep(3)
+        
+        # Open comments
+        page.evaluate('''() => {
+            const btn = document.querySelector('[data-e2e="comment-icon"]');
+            if (btn) btn.click();
+        }''')
+        time.sleep(2)
+        
+        for scroll in range(10):
+            new_users = page.evaluate('''() => {
+                const users = new Set();
+                document.querySelectorAll('[data-e2e="comment-username-1"], [class*="CommentUsername"], a[href*="/@"]').forEach(el => {
+                    const href = el.href || '';
+                    const match = href.match(/@([a-zA-Z0-9_.]+)/);
+                    if (match) users.add(match[1]);
+                    // Also check text content
+                    const text = el.textContent.trim();
+                    if (text.startsWith('@')) users.add(text.slice(1));
+                });
+                return Array.from(users);
+            }''')
+            
+            users.update(new_users)
+            
+            if len(users) >= limit:
+                break
+            
+            # Scroll in comments
+            page.evaluate('document.querySelector("[class*=CommentList]")?.scrollBy(0, 500)')
+            time.sleep(1)
+        
+        dm_log(f"✓ Found {len(users)} commenters")
+        return list(users)[:limit]
+    except Exception as e:
+        dm_log(f"✗ Error collecting commenters: {e}")
+        return []
+
+def collect_followers(page, account, limit=100):
+    """Collect followers from an account"""
+    users = set()
+    dm_log(f"→ Collecting followers of @{account}...")
+    
+    try:
+        page.goto(f"https://www.tiktok.com/@{account}", wait_until="domcontentloaded", timeout=30000)
+        time.sleep(3)
+        
+        # Click followers count to open list
+        page.evaluate('''() => {
+            const followerLink = document.querySelector('[data-e2e="followers-count"]');
+            if (followerLink) followerLink.click();
+        }''')
+        time.sleep(2)
+        
+        for scroll in range(10):
+            new_users = page.evaluate('''() => {
+                const users = new Set();
+                document.querySelectorAll('[class*="UserList"] a[href*="/@"], [class*="follower"] a[href*="/@"]').forEach(a => {
+                    const match = a.href.match(/@([a-zA-Z0-9_.]+)/);
+                    if (match) users.add(match[1]);
+                });
+                return Array.from(users);
+            }''')
+            
+            users.update(new_users)
+            
+            if len(users) >= limit:
+                break
+            
+            page.evaluate('document.querySelector("[class*=UserList]")?.scrollBy(0, 500)')
+            time.sleep(1)
+        
+        dm_log(f"✓ Found {len(users)} followers")
+        return list(users)[:limit]
+    except Exception as e:
+        dm_log(f"✗ Error collecting followers: {e}")
+        return []
+
+def run_dm_automation(ws_endpoint, profile_name):
+    """Run DM automation for a single profile"""
+    if not HAS_PLAYWRIGHT:
+        dm_log("✗ Playwright not installed!")
+        return False
+    
+    dms_sent = 0
+    target_users = []
+    
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.connect_over_cdp(ws_endpoint)
+            context = browser.contexts[0] if browser.contexts else browser.new_context()
+            page = context.pages[0] if context.pages else context.new_page()
+            
+            # Collect target users based on mode
+            mode = dm_settings.get("target_mode", "specific")
+            
+            if mode == "specific":
+                target_users = [u for u in dm_targets.get("specific_users", []) if u not in dm_status["sent_to"]]
+            elif mode == "hashtag":
+                hashtag = dm_settings.get("target_hashtag", "").strip().replace("#", "")
+                if hashtag:
+                    target_users = collect_users_from_hashtag(page, hashtag, 200)
+                    target_users = [u for u in target_users if u not in dm_status["sent_to"]]
+            elif mode == "commenters":
+                video_url = dm_settings.get("target_video_url", "").strip()
+                if video_url:
+                    target_users = collect_users_from_comments(page, video_url, 200)
+                    target_users = [u for u in target_users if u not in dm_status["sent_to"]]
+            elif mode == "followers":
+                account = dm_settings.get("target_account", "").strip().replace("@", "")
+                if account:
+                    target_users = collect_followers(page, account, 200)
+                    target_users = [u for u in target_users if u not in dm_status["sent_to"]]
+            
+            if not target_users:
+                dm_log(f"⚠ No new users to DM")
+                browser.close()
+                return False
+            
+            max_dms = dm_settings.get("max_dms_per_profile", 50)
+            target_users = target_users[:max_dms]
+            
+            dm_log(f"→ Will DM {len(target_users)} users")
+            
+            for i, username in enumerate(target_users):
+                if not dm_status["running"]:
+                    dm_log(f"⏹ Stopped by user")
+                    break
+                
+                dm_status["progress"] = i + 1
+                dm_status["total"] = len(target_users)
+                
+                message = get_dm_message(username)
+                success, result = send_dm_to_user(page, username, message)
+                
+                if success:
+                    dms_sent += 1
+                    dm_status["dms_sent"] += 1
+                    dm_status["sent_to"].add(username)
+                    
+                    dm_status["report"].append({
+                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "profile": profile_name,
+                        "username": username,
+                        "message": message[:50] + "..." if len(message) > 50 else message,
+                        "status": "sent"
+                    })
+                    
+                    save_dm_data()
+                    
+                    # Wait between DMs
+                    delay = random.randint(dm_settings["min_delay"], dm_settings["max_delay"])
+                    dm_log(f"  ⏳ Waiting {delay}s...")
+                    for _ in range(delay):
+                        if not dm_status["running"]:
+                            break
+                        time.sleep(1)
+            
+            browser.close()
+            dm_log(f"✓ Sent {dms_sent} DMs from {profile_name}")
+            return dms_sent > 0
+            
+    except Exception as e:
+        dm_log(f"✗ Error: {e}")
+        return False
+
+def process_dm_profile(profile_id, profile_name):
+    """Process a single profile for DM automation"""
+    dm_log(f"▶ Starting DM: {profile_name}")
+    dm_status["current_profile"] = profile_name
+    
+    browser_data = open_browser(profile_id)
+    if not browser_data:
+        dm_log(f"  ✗ Failed to open browser")
+        return False
+    
+    ws_endpoint = browser_data.get("ws", {}).get("puppeteer")
+    if not ws_endpoint:
+        dm_log(f"  ✗ No WebSocket endpoint")
+        close_browser(profile_id)
+        return False
+    
+    time.sleep(3)
+    success = run_dm_automation(ws_endpoint, profile_name)
+    
+    close_browser(profile_id)
+    dm_log(f"  → Browser closed")
+    
+    return success
+
+def start_dm_automation():
+    """Start the DM automation process"""
+    if dm_status["running"]:
+        return False
+    
+    dm_status["running"] = True
+    dm_status["logs"] = []
+    dm_status["progress"] = 0
+    dm_status["total"] = 0
+    
+    dm_log("═" * 50)
+    dm_log("Starting DM Automation...")
+    dm_log("═" * 50)
+    
+    if not profiles:
+        dm_log("✗ No profiles loaded!")
+        dm_status["running"] = False
+        return False
+    
+    def run():
+        try:
+            for i, profile in enumerate(profiles[:dm_settings.get("parallel_browsers", 2)]):
+                if not dm_status["running"]:
+                    break
+                
+                profile_id = profile.get("user_id")
+                profile_name = profile.get("name", profile_id)
+                
+                dm_status["progress"] = i + 1
+                dm_status["total"] = min(len(profiles), dm_settings.get("parallel_browsers", 2))
+                
+                process_dm_profile(profile_id, profile_name)
+                
+        except Exception as e:
+            dm_log(f"✗ Fatal error: {e}")
+        finally:
+            dm_status["running"] = False
+            dm_status["current_profile"] = None
+            dm_log("═" * 50)
+            dm_log(f"DM Automation Complete. Total DMs sent: {dm_status['dms_sent']}")
+            dm_log("═" * 50)
+    
+    threading.Thread(target=run, daemon=True).start()
+    return True
+
+def stop_dm_automation():
+    """Stop the DM automation"""
+    dm_status["running"] = False
+    dm_log("⏹ Stopping DM automation...")
+
     global profiles
     try:
         response = requests.get(f"{ADSPOWER_API}/api/v1/user/list?page_size=100", timeout=5)
