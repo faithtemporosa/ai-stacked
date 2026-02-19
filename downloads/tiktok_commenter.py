@@ -2255,6 +2255,7 @@ DASHBOARD_HTML = """
                     </div>
                     <div class="stats" style="margin-top:16px;">
                         <div class="stat"><div class="stat-value" id="post-queued">0</div><div class="stat-label">In Queue</div></div>
+                        <div class="stat"><div class="stat-value" id="post-scheduled">0</div><div class="stat-label">Scheduled</div></div>
                         <div class="stat"><div class="stat-value" id="post-done">0</div><div class="stat-label">Posts Made</div></div>
                     </div>
                     <div class="progress"><div class="progress-fill" id="post-prog" style="width:0%"></div></div>
