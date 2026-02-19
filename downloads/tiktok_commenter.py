@@ -2854,4 +2854,8 @@ if __name__ == "__main__":
     load_report_history()  # Load past runs
     load_dm_data()  # Load DM data
     load_post_data()  # Load post queue and history
+    # Start background scheduler thread
+    sched_thread = threading.Thread(target=scheduler_loop, daemon=True)
+    sched_thread.start()
+    print("  Scheduler running (checks scheduled posts every 30s)")
     app.run(host="0.0.0.0", port=9090, debug=False)
