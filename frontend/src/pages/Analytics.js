@@ -15,9 +15,19 @@ export default function Analytics() {
   const fetchAnalytics = useCallback(async () => {
     setLoading(true);
     try {
-      const { data: allComments } = await supabase.from("comment_reports").select("timestamp, profile, sheet");
+      // Fetch all comments in batches (Supabase limits to 1000 per query)
+      let allComments = [];
+      let from = 0;
+      const batchSize = 1000;
+      while (true) {
+        const { data } = await supabase.from("comment_reports").select("timestamp, profile, sheet").range(from, from + batchSize - 1);
+        if (!data || data.length === 0) break;
+        allComments = allComments.concat(data);
+        if (data.length < batchSize) break;
+        from += batchSize;
+      }
 
-      if (!allComments || allComments.length === 0) { setLoading(false); return; }
+      if (allComments.length === 0) { setLoading(false); return; }
 
       // Hourly distribution
       const hourCounts = Array(24).fill(0);
