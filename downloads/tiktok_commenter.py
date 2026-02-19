@@ -2235,7 +2235,15 @@ DASHBOARD_HTML = """
                             <input type="text" id="post-profiles" placeholder="Leave empty for first profile, or: profile1, profile2" style="width:100%;box-sizing:border-box;">
                         </div>
                         <div style="font-size:11px;color:#71717a;margin-bottom:10px;">Leave empty to post from first available profile</div>
-                        <button class="btn btn-success" onclick="addToPostQueue()" style="margin-top:8px;">+ Add to Queue</button>
+                        <div class="setting-row">
+                            <label>Schedule (optional):</label>
+                            <input type="datetime-local" id="post-schedule" style="width:100%;box-sizing:border-box;padding:8px;background:#27272a;border:1px solid #3f3f46;color:white;border-radius:6px;">
+                        </div>
+                        <div style="font-size:11px;color:#71717a;margin-bottom:10px;">Leave empty for manual start, or pick date/time for auto-posting</div>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn btn-success" onclick="addToPostQueue()" style="margin-top:8px;">+ Add to Queue</button>
+                            <button class="btn btn-primary" onclick="addToPostQueue(true)" style="margin-top:8px;">⏰ Schedule</button>
+                        </div>
                     </div>
                 </div>
                 <div class="card">
