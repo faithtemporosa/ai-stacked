@@ -1143,7 +1143,7 @@ async def get_plans():
     return {"plans": SUBSCRIPTION_PLANS}
 
 @api_router.post("/billing/checkout")
-async def create_checkout(req: CheckoutRequest, request: Any = Depends()):
+async def create_checkout(req: CheckoutRequest):
     if not HAS_STRIPE or not STRIPE_API_KEY:
         raise HTTPException(status_code=503, detail="Stripe not configured")
     
@@ -1154,8 +1154,6 @@ async def create_checkout(req: CheckoutRequest, request: Any = Depends()):
     if plan["amount"] == 0:
         raise HTTPException(status_code=400, detail="Free plan does not require payment")
     
-    from starlette.requests import Request
-    http_request = request
     host_url = req.origin_url.rstrip("/")
     webhook_url = f"{host_url}/api/webhook/stripe"
     
