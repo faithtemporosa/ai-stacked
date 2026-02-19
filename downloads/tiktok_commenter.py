@@ -2271,7 +2271,7 @@ DASHBOARD_HTML = """
                     <button class="btn btn-danger" onclick="clearPostQueue()" style="padding:4px 12px;">Clear Queue</button>
                 </div>
                 <div style="max-height:200px;overflow:auto">
-                    <table class="report-table"><thead><tr><th>Video</th><th>Caption</th><th>Profiles</th><th>Status</th><th>Action</th></tr></thead><tbody id="post-queue-tb"></tbody></table>
+                    <table class="report-table"><thead><tr><th>Video</th><th>Caption</th><th>Schedule/Profiles</th><th>Status</th><th>Action</th></tr></thead><tbody id="post-queue-tb"></tbody></table>
                 </div>
             </div>
             <div class="card" style="margin-top:20px;">
