@@ -4,7 +4,7 @@
 User wants to automate posting promotional comments on TikTok using 25 AdsPower browser profiles. Local script controlled by web dashboard, with public-facing website for team reports in real-time.
 
 ## Solution Architecture
-1. **Local Script** (`tiktok_commenter.py`) - Flask + Playwright automation for comments, DMs, and posting
+1. **Local Script** (`tiktok_commenter.py`) - Flask + Playwright automation for comments, DMs, and automated reposting
 2. **Cloud Data** (Supabase) - PostgreSQL + Realtime for comment_reports, dm_reports, post_reports, live_logs
 3. **Public Dashboard** (React) - Tabbed SaaS dashboard with analytics, billing, email notifications
 4. **API Backend** (FastAPI + MongoDB) - Auth, billing (Stripe), email notifications (Resend)
@@ -21,8 +21,11 @@ User wants to automate posting promotional comments on TikTok using 25 AdsPower 
 ### Core Automation (Local Script)
 - [x] Auto commenting on TikTok (25 profiles, 2 parallel, 100 videos each)
 - [x] DM automation (specific users, hashtag users, followers)
-- [x] Post to TikTok (video upload, queue management)
-- [x] Post Scheduler (datetime picker, background thread, auto-trigger)
+- [x] **Auto Repost Scheduler (NEW)** - Automated content reposting with weekly strategy:
+  - Monday: Repost brand content (Bump Connect, Kollabsy, Bump Syndicate)
+  - Tuesday-Sunday: Repost social media / content creator content
+  - Max 2 reposts per profile per day
+  - Auto-starts daily at 9 AM
 - [x] Supabase cloud sync for comments, DMs, posts
 - [x] 3 brands: Bump Connect, Kollabsy, Bump Syndicate
 
@@ -56,11 +59,6 @@ User wants to automate posting promotional comments on TikTok using 25 AdsPower 
 - [x] Resend integration (needs user API key for production)
 - [x] Settings UI for managing subscribers
 
-### Testing
-- [x] Iteration 3: 100% (25/25 backend, all frontend)
-- [x] Iteration 4: 100% (25/25 backend, all frontend)
-- [x] Iteration 5: 100% (22/22 backend, all frontend) + bug fix
-
 ## API Endpoints
 
 ### Billing
@@ -84,7 +82,7 @@ User wants to automate posting promotional comments on TikTok using 25 AdsPower 
 |-------|---------|
 | `comment_reports` | Comment history from automation |
 | `dm_reports` | DM history from automation |
-| `post_reports` | Post history from automation |
+| `post_reports` | Repost history from automation |
 | `live_logs` | Real-time automation logs |
 
 ## MongoDB Collections
@@ -97,22 +95,36 @@ User wants to automate posting promotional comments on TikTok using 25 AdsPower 
 | `reports` | Legacy comment reports |
 
 ## Files Reference
-- `/app/downloads/tiktok_commenter.py` - Local automation script
+- `/app/downloads/tiktok_commenter.py` - Local automation script with auto repost scheduler
 - `/app/backend/server.py` - FastAPI backend
 - `/app/frontend/src/App.js` - Main app (Dashboard + Landing)
 - `/app/frontend/src/pages/Analytics.js` - Analytics charts
 - `/app/frontend/src/pages/Landing.js` - Landing + pricing page
 - `/app/frontend/src/pages/Settings.js` - Email + billing settings
+- `/app/supabase_schema.sql` - SQL for creating Supabase tables
+- `/app/DEPLOY.md` - Deployment guide for Vercel/Render
 
 ## Configuration Notes
 - **Email**: User needs to add their Resend API key (`RESEND_API_KEY=re_...`) to `backend/.env` for production email sending
 - **Stripe**: Test key `sk_test_emergent` is pre-configured
-- **Supabase**: `dm_reports` and `post_reports` tables need to be created in Supabase when first syncing
+- **Supabase**: Run `/app/supabase_schema.sql` to create all required tables
+
+## Bug Fixes (Feb 2026)
+- [x] Fixed missing `timedelta` import in `tiktok_commenter.py` (caused scheduler to crash)
 
 ## Next Steps
-- P0: User testing of local bot features (Post Scheduler, DM sync, Post sync)
+- P0: User testing of local bot features (Auto Repost Scheduler, DM sync)
 - P1: Deploy to Vercel/Render for production
 - P1: Add Resend API key for production email
+- P1: Create Supabase tables using provided SQL
 - P2: Advanced analytics (engagement rates, ROI tracking)
 - P2: Multi-team data isolation
 - P2: Downloadable local agent installer for Mac
+
+## Changelog
+
+### Feb 19, 2026
+- Fixed missing `timedelta` import in scheduler_loop function
+- Created `/app/supabase_schema.sql` with all table definitions
+- Updated `/app/DEPLOY.md` with comprehensive deployment instructions
+- Verified frontend and backend are working correctly
