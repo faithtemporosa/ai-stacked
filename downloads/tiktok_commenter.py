@@ -5,7 +5,7 @@ AdsPower TikTok Direct Commenter v2
 Directly comments on TikTok videos using JavaScript injection for reliability.
 
 SETUP:
-    pip install requests flask playwright
+    pip install requests flask playwright emergentintegrations
     playwright install chromium
 
 RUN:
@@ -22,9 +22,18 @@ import io
 import threading
 import random
 import traceback
+import asyncio
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import Flask, render_template_string, jsonify, request
+
+# AI for reply drafting
+try:
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+    HAS_AI = True
+except ImportError:
+    HAS_AI = False
+    print("Note: Install emergentintegrations for AI replies: pip install emergentintegrations --extra-index-url https://d33sy5i8bnduwe.cloudfront.net/simple/")
 
 # Supabase for cloud sync
 try:
