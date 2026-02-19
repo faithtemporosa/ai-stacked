@@ -2773,6 +2773,7 @@ def api_post_queue_add():
         "hashtags": data.get("hashtags", []),
         "profiles": data.get("profiles", []),
         "status": "pending",
+        "scheduled_at": data.get("scheduled_at", ""),
         "added_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
     post_queue.append(post_item)
