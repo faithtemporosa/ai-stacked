@@ -325,27 +325,29 @@ def sync_post_to_cloud(post_entry):
         pass
 
 def scheduler_loop():
-    """Background thread: checks for scheduled posts that are due"""
+    """Background thread: auto-runs repost scheduler daily"""
     while scheduler_running:
         try:
             now = datetime.now()
-            for post in post_queue:
-                if post.get("status") != "pending":
-                    continue
-                scheduled_at = post.get("scheduled_at", "")
-                if not scheduled_at:
-                    continue
-                try:
-                    sched_time = datetime.strptime(scheduled_at, "%Y-%m-%d %H:%M")
-                    if now >= sched_time and not post_status["running"]:
-                        post_log(f"⏰ Scheduled post due: {post.get('caption', 'No caption')[:40]}...")
-                        start_post_automation()
-                        break
-                except ValueError:
-                    pass
+            # Check if we should run (once per day, early morning suggested)
+            today_str = now.strftime("%Y-%m-%d")
+            
+            if post_settings.get("enabled") and not post_status["running"]:
+                # Check if we've already run today
+                if post_status.get("last_run") != today_str:
+                    hour = now.hour
+                    # Auto-start at configured hour (default: 9 AM)
+                    if hour >= 9 and hour < 22:
+                        post_log(f"⏰ Scheduler: Auto-starting repost run for {today_str}")
+                        post_status["next_run"] = None
+                        start_repost_automation()
+                else:
+                    # Already ran today, calculate next run
+                    tomorrow = (now + timedelta(days=1)).replace(hour=9, minute=0, second=0)
+                    post_status["next_run"] = tomorrow.strftime("%Y-%m-%d %H:%M")
         except:
             pass
-        time.sleep(30)  # Check every 30 seconds
+        time.sleep(60)  # Check every minute
 
 # =============================================================================
 # DM FUNCTIONS
