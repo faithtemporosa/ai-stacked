@@ -10,7 +10,7 @@ import os
 import uuid
 from datetime import datetime
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://bot-reporter.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://creator-suite-18.preview.emergentagent.com').rstrip('/')
 
 
 class TestRootAPI:
@@ -77,7 +77,7 @@ class TestBillingCheckout:
             f"{BASE_URL}/api/billing/checkout",
             json={
                 "plan_id": "pro",
-                "origin_url": "https://bot-reporter.preview.emergentagent.com"
+                "origin_url": "https://creator-suite-18.preview.emergentagent.com"
             }
         )
         assert response.status_code == 200
@@ -93,7 +93,7 @@ class TestBillingCheckout:
             f"{BASE_URL}/api/billing/checkout",
             json={
                 "plan_id": "enterprise",
-                "origin_url": "https://bot-reporter.preview.emergentagent.com"
+                "origin_url": "https://creator-suite-18.preview.emergentagent.com"
             }
         )
         assert response.status_code == 200
@@ -108,7 +108,7 @@ class TestBillingCheckout:
             f"{BASE_URL}/api/billing/checkout",
             json={
                 "plan_id": "free",
-                "origin_url": "https://bot-reporter.preview.emergentagent.com"
+                "origin_url": "https://creator-suite-18.preview.emergentagent.com"
             }
         )
         assert response.status_code == 400
@@ -122,7 +122,7 @@ class TestBillingCheckout:
             f"{BASE_URL}/api/billing/checkout",
             json={
                 "plan_id": "invalid_plan",
-                "origin_url": "https://bot-reporter.preview.emergentagent.com"
+                "origin_url": "https://creator-suite-18.preview.emergentagent.com"
             }
         )
         assert response.status_code == 400

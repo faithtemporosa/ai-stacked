@@ -52,7 +52,7 @@ GOOGLE_SHEET_ID = "1cgjxB09nXSsKMEFwNxQlDzl8xVDyQgT0o8aKm6YOJ-o"
 SHEET_NAMES = ["Bump Connect", "Kollabsy", "Bump Syndicate"]
 
 # Cloud API for real-time reporting (update this URL after deployment)
-CLOUD_API_URL = "https://bot-reporter.preview.emergentagent.com/api"
+CLOUD_API_URL = "https://creator-suite-18.preview.emergentagent.com/api"
 
 MIN_DELAY_BETWEEN_COMMENTS = 30
 MAX_DELAY_BETWEEN_COMMENTS = 60
@@ -2180,7 +2180,7 @@ DASHBOARD_HTML = """
                 </div>
                 <div style="background:#1e1b4b;border:1px solid #4c1d95;border-radius:8px;padding:12px;margin-bottom:16px;">
                     <div style="font-size:12px;color:#a78bfa;margin-bottom:4px;">☁️ Team Dashboard</div>
-                    <div style="font-size:11px;color:#71717a;">Comments are automatically synced to: <a href="https://bot-reporter.preview.emergentagent.com" target="_blank" style="color:#7c3aed;">profile-reports-sync.preview.emergentagent.com</a></div>
+                    <div style="font-size:11px;color:#71717a;">Comments are automatically synced to: <a href="https://creator-suite-18.preview.emergentagent.com" target="_blank" style="color:#7c3aed;">profile-reports-sync.preview.emergentagent.com</a></div>
                 </div>
                 <div id="filter-info" style="font-size:12px;color:#a78bfa;margin-bottom:10px;">Showing: All time</div>
                 <div style="max-height:400px;overflow:auto">
