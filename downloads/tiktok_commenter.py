@@ -2649,6 +2649,7 @@ DASHBOARD_HTML = """
         let dmStatus={running:false,dms_sent:0,report:[]};
         function dmModeChange(){
             const mode=document.getElementById('dm-mode').value;
+            document.getElementById('dm-brand-info').style.display=mode=='brand_search'?'block':'none';
             document.getElementById('dm-specific').style.display=mode=='specific'?'block':'none';
             document.getElementById('dm-hashtag').style.display=mode=='hashtag'?'block':'none';
             document.getElementById('dm-video').style.display=mode=='commenters'?'block':'none';
@@ -2660,25 +2661,32 @@ DASHBOARD_HTML = """
                 const d=await r.json();
                 dmStatus=d;
                 document.getElementById('dm-sent').textContent=d.dms_sent||0;
-                document.getElementById('dm-queue').textContent=d.targets?.specific_users_count||0;
+                document.getElementById('dm-today').textContent=d.dms_sent_today||0;
+                const maxTotal=d.settings?.max_dms_total||250;
+                document.getElementById('dm-remaining').textContent=Math.max(0, maxTotal-(d.dms_sent_today||0));
+                document.getElementById('dm-profiles-done').textContent=d.profiles_completed?.length||0;
                 document.getElementById('dm-prog').style.width=(d.total?(d.progress/d.total*100):0)+'%';
-                document.getElementById('dm-st').textContent=d.running?'Running: '+d.current_profile+' ('+d.progress+'/'+d.total+')':'Ready';
+                document.getElementById('dm-st').textContent=d.running?'🔄 Running: '+d.current_profile+' ('+d.progress+'/'+d.total+')':'Ready - Click Start to begin brand outreach';
                 if(!d.running){document.getElementById('dm-startb').style.display='inline';document.getElementById('dm-stopb').style.display='none';}
                 else{document.getElementById('dm-startb').style.display='none';document.getElementById('dm-stopb').style.display='inline';}
-                if(d.logs&&d.logs.length)document.getElementById('dm-logs').innerHTML=d.logs.map(l=>'<div style="color:'+(l.includes('✗')?'#f87171':l.includes('✓')?'#4ade80':'#a1a1aa')+'">'+l+'</div>').join('');
+                if(d.logs&&d.logs.length)document.getElementById('dm-logs').innerHTML=d.logs.map(l=>'<div style="color:'+(l.includes('✗')?'#f87171':l.includes('✓')?'#4ade80':l.includes('⚠')?'#fbbf24':'#a1a1aa')+'">'+l+'</div>').join('');
                 if(d.report)renderDmReport(d.report);
                 if(d.targets?.messages?.default)document.getElementById('dm-default-msg').value=d.targets.messages.default;
+                // Update limit displays
+                document.getElementById('dm-limit-profile').textContent=d.settings?.max_dms_per_profile||100;
+                document.getElementById('dm-limit-total').textContent=d.settings?.max_dms_total||250;
             }catch(e){}
         }
         setInterval(()=>{if(document.getElementById('tab-dm').style.display!='none')updDm();},2000);
         function renderDmReport(rep){
-            document.getElementById('dm-rb').innerHTML=rep.length?rep.slice().reverse().slice(0,50).map(r=>'<tr><td>'+r.timestamp+'</td><td>'+r.profile+'</td><td>@'+r.username+'</td><td>'+r.message+'</td><td style="color:'+(r.status=='sent'?'#4ade80':'#f87171')+'">'+r.status+'</td></tr>').join(''):'<tr><td colspan="5" style="text-align:center;color:#71717a">No DMs sent yet</td></tr>';
+            document.getElementById('dm-rb').innerHTML=rep.length?rep.slice().reverse().slice(0,50).map(r=>'<tr><td>'+r.timestamp+'</td><td>'+r.profile+'</td><td>@'+r.username+'</td><td title="'+r.message+'">'+r.message.substring(0,30)+'...</td><td style="color:'+(r.status=='sent'?'#4ade80':'#f87171')+'">'+r.status+'</td></tr>').join(''):'<tr><td colspan="5" style="text-align:center;color:#71717a">No DMs sent yet</td></tr>';
         }
-        async function saveDmTargets(){
+        async function saveDmSettings(){
             const mode=document.getElementById('dm-mode').value;
             const settings={
                 target_mode:mode,
                 max_dms_per_profile:+document.getElementById('dm-max').value,
+                max_dms_total:+document.getElementById('dm-max-total').value,
                 min_delay:+document.getElementById('dm-mind').value,
                 max_delay:+document.getElementById('dm-maxd').value,
                 target_hashtag:document.getElementById('dm-tag').value,
@@ -2686,15 +2694,15 @@ DASHBOARD_HTML = """
                 target_account:document.getElementById('dm-acc').value
             };
             await fetch('/api/dm/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(settings)});
-            const targets={
-                specific_users:document.getElementById('dm-users').value,
-                default_message:document.getElementById('dm-default-msg').value
-            };
-            await fetch('/api/dm/targets',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(targets)});
             alert('DM settings saved!');
         }
+        async function saveDmMessage(){
+            const msg=document.getElementById('dm-default-msg').value;
+            await fetch('/api/dm/message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg})});
+            alert('Message saved!');
+        }
         async function startDm(){
-            await saveDmTargets();
+            await saveDmSettings();
             await fetch('/api/dm/start',{method:'POST'});
             document.getElementById('dm-startb').style.display='none';
             document.getElementById('dm-stopb').style.display='inline';
@@ -2703,13 +2711,6 @@ DASHBOARD_HTML = """
         function clrDmLog(){fetch('/api/dm/clear-logs',{method:'POST'});document.getElementById('dm-logs').innerHTML='Cleared';}
         async function clrDmHistory(){if(!confirm('Clear all DM history?'))return;await fetch('/api/dm/clear-history',{method:'POST'});dmStatus.report=[];renderDmReport([]);}
         function expDmCSV(){window.open('/api/dm/export','_blank');}
-        function addDmGroup(){
-            const name=prompt('Group name:');
-            if(!name)return;
-            const users=prompt('Usernames (comma separated):');
-            const msg=prompt('Message for this group:');
-            fetch('/api/dm/add-group',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,users,message:msg})}).then(()=>updDm());
-        }
     </script>
 </body>
 </html>
