@@ -3829,7 +3829,7 @@ def api_post_export():
 
 if __name__ == "__main__":
     print("=" * 50)
-    print("  TikTok Commenter - http://localhost:9090")
+    print("  TikTok Commenter - http://localhost:9000")
     print("=" * 50)
     load_report_history()  # Load past runs
     load_dm_data()  # Load DM data
@@ -3839,4 +3839,4 @@ if __name__ == "__main__":
     sched_thread = threading.Thread(target=scheduler_loop, daemon=True)
     sched_thread.start()
     print("  Scheduler running (checks scheduled posts every 30s)")
-    app.run(host="0.0.0.0", port=9090, debug=False)
+    app.run(host="0.0.0.0", port=9000, debug=False)
