@@ -430,19 +430,32 @@ def load_dm_data():
             dm_status["report"] = data.get("report", [])
             dm_status["sent_to"] = set(data.get("sent_to", []))
             dm_status["dms_sent"] = len(dm_status["report"])
-            print(f"✓ Loaded {len(dm_status['report'])} DM history")
+            # Count today's DMs
+            today = datetime.now().strftime("%Y-%m-%d")
+            dm_status["dms_sent_today"] = sum(1 for r in dm_status["report"] if r.get("timestamp", "").startswith(today))
+            print(f"✓ Loaded {len(dm_status['report'])} DM history ({dm_status['dms_sent_today']} today)")
     except FileNotFoundError:
         pass
     except Exception as e:
         print(f"Error loading DM history: {e}")
 
 def save_dm_data():
-    """Save DM targets and history"""
+    """Save DM targets, tracker and history"""
     try:
         with open(DM_TARGETS_FILE, 'w') as f:
-            json.dump(dm_targets, f, indent=2)
+            # Convert set to list for JSON serialization
+            targets_to_save = dm_targets.copy()
+            if 'scraped_brands' in targets_to_save and isinstance(targets_to_save['scraped_brands'], set):
+                targets_to_save['scraped_brands'] = list(targets_to_save['scraped_brands'])
+            json.dump(targets_to_save, f, indent=2)
     except Exception as e:
         print(f"Error saving DM targets: {e}")
+    
+    try:
+        with open(DM_TRACKER_FILE, 'w') as f:
+            json.dump(dm_tracker, f, indent=2)
+    except Exception as e:
+        print(f"Error saving DM tracker: {e}")
     
     try:
         with open(DM_REPORT_FILE, 'w') as f:
@@ -453,6 +466,27 @@ def save_dm_data():
             }, f, indent=2)
     except Exception as e:
         print(f"Error saving DM history: {e}")
+
+def get_dms_today(profile_name):
+    """Get number of DMs sent by profile today"""
+    today = datetime.now().strftime("%Y-%m-%d")
+    return dm_tracker.get(profile_name, {}).get(today, 0)
+
+def record_dm(profile_name):
+    """Record a DM sent by profile"""
+    today = datetime.now().strftime("%Y-%m-%d")
+    if profile_name not in dm_tracker:
+        dm_tracker[profile_name] = {}
+    dm_tracker[profile_name][today] = dm_tracker[profile_name].get(today, 0) + 1
+    save_dm_data()
+
+def get_total_dms_today():
+    """Get total DMs sent today across all profiles"""
+    today = datetime.now().strftime("%Y-%m-%d")
+    total = 0
+    for profile_data in dm_tracker.values():
+        total += profile_data.get(today, 0)
+    return total
 
 def dm_log(message):
     """Log for DM operations"""
@@ -470,6 +504,90 @@ def get_dm_message(username):
         if username in group_data.get("users", []):
             return group_data.get("message", dm_targets["messages"]["default"])
     return dm_targets["messages"]["default"]
+
+def search_brands_on_tiktok(page, search_query, limit=50):
+    """Search TikTok for brands/businesses and collect usernames"""
+    brands = []
+    dm_log(f"🔍 Searching: '{search_query}'")
+    
+    try:
+        encoded = search_query.replace(" ", "%20")
+        # Search for users (accounts), not videos
+        page.goto(f"https://www.tiktok.com/search/user?q={encoded}", wait_until="domcontentloaded", timeout=30000)
+        time.sleep(4)
+        
+        # Check if logged in
+        if "login" in page.url.lower():
+            dm_log(f"  ⚠ Not logged in!")
+            return []
+        
+        # Scroll and collect users
+        for scroll in range(5):
+            new_brands = page.evaluate('''() => {
+                const users = [];
+                // Find user cards in search results
+                document.querySelectorAll('[data-e2e="search-user-container"] a[href*="/@"], [class*="UserCard"] a[href*="/@"], a[href*="/@"]').forEach(a => {
+                    const match = a.href.match(/@([a-zA-Z0-9_.]+)/);
+                    if (match && !users.includes(match[1])) {
+                        // Check if it looks like a business/brand (has certain indicators)
+                        const card = a.closest('[class*="Card"], [class*="container"], [class*="Item"]');
+                        if (card) {
+                            const text = card.innerText.toLowerCase();
+                            // Look for business indicators
+                            if (text.includes('business') || text.includes('brand') || 
+                                text.includes('shop') || text.includes('store') ||
+                                text.includes('official') || text.includes('co.') ||
+                                text.includes('llc') || text.includes('inc') ||
+                                text.includes('@') || text.includes('.com') ||
+                                text.includes('founder') || text.includes('ceo') ||
+                                text.includes('owner') || text.length > 10) {
+                                users.push(match[1]);
+                            }
+                        } else {
+                            users.push(match[1]);
+                        }
+                    }
+                });
+                return users;
+            }''')
+            
+            brands.extend([b for b in new_brands if b not in brands])
+            
+            if len(brands) >= limit:
+                break
+            
+            # Scroll down
+            page.evaluate('window.scrollBy(0, 600)')
+            time.sleep(1.5)
+        
+        dm_log(f"  ✓ Found {len(brands)} potential brands")
+        return brands[:limit]
+        
+    except Exception as e:
+        dm_log(f"  ✗ Search error: {str(e)[:80]}")
+        return []
+
+def scrape_brands_for_dm(page, num_brands=100):
+    """Scrape brands from multiple search queries"""
+    all_brands = set()
+    queries_to_use = random.sample(DM_BRAND_SEARCH_QUERIES, min(5, len(DM_BRAND_SEARCH_QUERIES)))
+    
+    dm_log(f"🎯 Scraping brands using {len(queries_to_use)} search queries...")
+    
+    for query in queries_to_use:
+        if len(all_brands) >= num_brands:
+            break
+        
+        brands = search_brands_on_tiktok(page, query, limit=30)
+        # Filter out already contacted users
+        new_brands = [b for b in brands if b not in dm_status["sent_to"]]
+        all_brands.update(new_brands)
+        
+        # Small delay between searches
+        time.sleep(random.randint(2, 4))
+    
+    dm_log(f"✓ Total unique brands found: {len(all_brands)}")
+    return list(all_brands)[:num_brands]
 
 def send_dm_to_user(page, username, message):
     """Send a DM to a specific user using Playwright"""
