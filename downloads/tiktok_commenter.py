@@ -2285,74 +2285,42 @@ DASHBOARD_HTML = """
         function expCSV(){if(!report.length)return alert('No data');const csv='Date,Time,Profile,Comment,Video URL,Sheet\\n'+report.map(r=>{const[d,t]=r.timestamp.split(' ');return d+','+t+','+r.profile+',"'+r.comment.replace(/"/g,'""')+'",'+r.video_url+','+r.sheet;}).join('\\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv]));a.download='tiktok_comments_history_'+new Date().toISOString().split('T')[0]+'.csv';a.click();}
         async function syncCloud(){if(!report.length)return alert('No reports to sync');try{const r=await fetch('/api/sync-to-cloud',{method:'POST'});const d=await r.json();alert('☁️ Synced '+d.synced+' reports to cloud dashboard!');}catch(e){alert('Sync failed: '+e.message);}}
         
-        // Post Functions
-        let postStatus={running:false,posts_made:0,queue:[],history:[],logs:[]};
+        // Repost Functions
+        let postStatus={running:false,posts_made:0,history:[],logs:[]};
         async function updPost(){
             try{
                 const r=await fetch('/api/post/status');
                 const d=await r.json();
                 postStatus=d;
-                document.getElementById('post-queued').textContent=d.queue_pending||0;
-                document.getElementById('post-scheduled').textContent=d.scheduled_count||0;
                 document.getElementById('post-done').textContent=d.posts_made||0;
+                const todayCount=d.history?d.history.filter(h=>{const t=h.timestamp||'';return t.startsWith(new Date().toISOString().split('T')[0])}).length:0;
+                document.getElementById('post-today-count').textContent=todayCount;
                 document.getElementById('post-prog').style.width=(d.total?(d.progress/d.total*100):0)+'%';
-                document.getElementById('post-st').textContent=d.running?'Posting: '+d.current_profile+' ('+d.progress+'/'+d.total+')':'Ready';
+                const dayName=new Date().toLocaleDateString('en-US',{weekday:'long'});
+                const isMonday=new Date().getDay()===1;
+                const contentType=isMonday?'Brand':'Social Media';
+                document.getElementById('post-st').textContent=d.running?'Reposting: '+d.current_profile+' ('+d.progress+'/'+d.total+')':'Ready ('+dayName+': '+contentType+' content)';
+                document.getElementById('post-next').textContent=d.last_run?(d.last_run===new Date().toISOString().split('T')[0]?'Last run: Today':'Last run: '+d.last_run)+(d.next_run?' | Next: '+d.next_run:''):'Scheduler: Waiting for first run...';
                 if(!d.running){document.getElementById('post-startb').style.display='inline';document.getElementById('post-stopb').style.display='none';}
                 else{document.getElementById('post-startb').style.display='none';document.getElementById('post-stopb').style.display='inline';}
-                if(d.logs&&d.logs.length)document.getElementById('post-logs').innerHTML=d.logs.map(l=>'<div style="color:'+(l.includes('✗')?'#f87171':l.includes('✓')?'#4ade80':'#a1a1aa')+'">'+l+'</div>').join('');
-                renderPostQueue(d.queue||[]);
+                if(d.logs&&d.logs.length)document.getElementById('post-logs').innerHTML=d.logs.map(l=>'<div style="color:'+(l.includes('Error')||l.includes('Failed')?'#f87171':l.includes('Reposted')||l.includes('Done')?'#4ade80':'#a1a1aa')+'">'+l+'</div>').join('');
                 renderPostHistory(d.history||[]);
             }catch(e){}
         }
         setInterval(()=>{if(document.getElementById('tab-post').style.display!='none')updPost();},2000);
-        function renderPostQueue(queue){
-            document.getElementById('post-queue-tb').innerHTML=queue.length?queue.map((p,i)=>'<tr><td title="'+p.video_path+'">'+p.video_path.split('/').pop()+'</td><td>'+((p.caption||'').substring(0,30)||'-')+'</td><td>'+(p.scheduled_at?'⏰ '+p.scheduled_at:(p.profiles&&p.profiles.length?p.profiles.join(', '):'Auto'))+'</td><td style="color:'+(p.status=='posted'?'#4ade80':p.status=='pending'?'#fbbf24':'#f87171')+'">'+p.status+'</td><td><button class="btn btn-danger" style="padding:2px 8px;font-size:11px" onclick="removeFromQueue('+i+')">X</button></td></tr>').join(''):'<tr><td colspan="5" style="text-align:center;color:#71717a">No videos in queue. Add one above.</td></tr>';
-        }
         function renderPostHistory(hist){
-            document.getElementById('post-hist-tb').innerHTML=hist.length?hist.slice().reverse().slice(0,50).map(h=>'<tr><td>'+h.timestamp+'</td><td>'+h.profile+'</td><td>'+h.video.split('/').pop()+'</td><td>'+((h.caption||'').substring(0,30))+'</td><td style="color:#4ade80">'+h.status+'</td></tr>').join(''):'<tr><td colspan="5" style="text-align:center;color:#71717a">No posts made yet</td></tr>';
+            document.getElementById('post-hist-tb').innerHTML=hist.length?hist.slice().reverse().slice(0,50).map(h=>'<tr><td>'+h.timestamp+'</td><td>'+h.profile+'</td><td><a href="'+h.video+'" target="_blank" style="color:#a78bfa">View</a></td><td style="color:'+(h.content_type=='brand'?'#4ade80':'#60a5fa')+'">'+((h.content_type||'').charAt(0).toUpperCase()+(h.content_type||'').slice(1))+'</td><td style="color:#4ade80">'+h.status+'</td></tr>').join(''):'<tr><td colspan="5" style="text-align:center;color:#71717a">No reposts yet. Click Start or wait for auto-scheduler.</td></tr>';
         }
-        async function addToPostQueue(useSchedule){
-            const video=document.getElementById('post-video').value.trim();
-            const caption=document.getElementById('post-caption').value.trim();
-            const hashtags=document.getElementById('post-hashtags').value.trim();
-            const profilesStr=document.getElementById('post-profiles').value.trim();
-            const scheduleVal=document.getElementById('post-schedule').value;
-            if(!video){alert('Please enter a video path');return;}
-            if(useSchedule&&!scheduleVal){alert('Please pick a schedule date/time');return;}
-            const profiles_list=profilesStr?profilesStr.split(',').map(p=>p.trim()).filter(p=>p):[];
-            const hashtags_list=hashtags?hashtags.split(/[,\s]+/).map(h=>h.trim()).filter(h=>h):[];
-            const scheduled_at=useSchedule?scheduleVal.replace('T',' '):'';
-            const r=await fetch('/api/post/queue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({video_path:video,caption:caption,hashtags:hashtags_list,profiles:profiles_list,scheduled_at:scheduled_at})});
-            const d=await r.json();
-            if(d.ok){
-                document.getElementById('post-video').value='';
-                document.getElementById('post-caption').value='';
-                document.getElementById('post-hashtags').value='';
-                document.getElementById('post-profiles').value='';
-                document.getElementById('post-schedule').value='';
-                updPost();
-                if(useSchedule)alert('Post scheduled for '+scheduled_at);
-            }else{alert(d.error||'Failed to add');}
+        async function applyRepostSettings(){
+            const s={max_reposts_per_day:+document.getElementById('post-maxday').value,min_delay:+document.getElementById('post-mind').value,max_delay:+document.getElementById('post-maxd').value};
+            await fetch('/api/post/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(s)});
+            document.getElementById('post-limit-display').textContent=s.max_reposts_per_day;
+            alert('Settings saved!');
         }
-        async function removeFromQueue(idx){
-            await fetch('/api/post/queue/remove',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({index:idx})});
-            updPost();
-        }
-        async function clearPostQueue(){
-            if(!confirm('Clear all pending posts from queue?'))return;
-            await fetch('/api/post/queue/clear',{method:'POST'});
-            updPost();
-        }
-        async function startPost(){
-            const settings={min_delay:+document.getElementById('post-mind').value,max_delay:+document.getElementById('post-maxd').value};
-            await fetch('/api/post/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(settings)});
-            await fetch('/api/post/start',{method:'POST'});
-            document.getElementById('post-startb').style.display='none';
-            document.getElementById('post-stopb').style.display='inline';
-        }
+        async function startPost(){await fetch('/api/post/start',{method:'POST'});document.getElementById('post-startb').style.display='none';document.getElementById('post-stopb').style.display='inline';}
         async function stopPost(){await fetch('/api/post/stop',{method:'POST'});}
         function clrPostLog(){fetch('/api/post/clear-logs',{method:'POST'});document.getElementById('post-logs').innerHTML='Cleared';}
-        async function clrPostHistory(){if(!confirm('Clear all post history?'))return;await fetch('/api/post/clear-history',{method:'POST'});updPost();}
+        async function clrPostHistory(){if(!confirm('Clear all repost history?'))return;await fetch('/api/post/clear-history',{method:'POST'});updPost();}
         function expPostCSV(){window.open('/api/post/export','_blank');}
         
         // DM Functions
