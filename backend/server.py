@@ -1114,6 +1114,218 @@ async def export_reports(
         logger.error(f"Error exporting reports: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# =============================================================================
+# STRIPE BILLING ENDPOINTS
+# =============================================================================
+
+import asyncio
+
+try:
+    from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionResponse, CheckoutStatusResponse, CheckoutSessionRequest
+    HAS_STRIPE = True
+except ImportError:
+    HAS_STRIPE = False
+
+STRIPE_API_KEY = os.environ.get("STRIPE_API_KEY")
+
+SUBSCRIPTION_PLANS = {
+    "free": {"name": "Free", "amount": 0.00, "features": ["5 profiles", "50 comments/day", "Basic reports", "Community support"]},
+    "pro": {"name": "Pro", "amount": 29.00, "features": ["25 profiles", "Unlimited comments", "DM automation", "Post scheduler", "Priority support", "Real-time analytics"]},
+    "enterprise": {"name": "Enterprise", "amount": 99.00, "features": ["Unlimited profiles", "All Pro features", "Custom branding", "API access", "Dedicated support", "White-label option"]}
+}
+
+class CheckoutRequest(BaseModel):
+    plan_id: str
+    origin_url: str
+
+@api_router.get("/billing/plans")
+async def get_plans():
+    return {"plans": SUBSCRIPTION_PLANS}
+
+@api_router.post("/billing/checkout")
+async def create_checkout(req: CheckoutRequest, request: Any = Depends()):
+    if not HAS_STRIPE or not STRIPE_API_KEY:
+        raise HTTPException(status_code=503, detail="Stripe not configured")
+    
+    if req.plan_id not in SUBSCRIPTION_PLANS:
+        raise HTTPException(status_code=400, detail="Invalid plan")
+    
+    plan = SUBSCRIPTION_PLANS[req.plan_id]
+    if plan["amount"] == 0:
+        raise HTTPException(status_code=400, detail="Free plan does not require payment")
+    
+    from starlette.requests import Request
+    http_request = request
+    host_url = req.origin_url.rstrip("/")
+    webhook_url = f"{host_url}/api/webhook/stripe"
+    
+    stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
+    
+    success_url = f"{host_url}/billing/success?session_id={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"{host_url}/billing"
+    
+    checkout_req = CheckoutSessionRequest(
+        amount=plan["amount"],
+        currency="usd",
+        success_url=success_url,
+        cancel_url=cancel_url,
+        metadata={"plan_id": req.plan_id, "plan_name": plan["name"]}
+    )
+    
+    session = await stripe_checkout.create_checkout_session(checkout_req)
+    
+    await db.payment_transactions.insert_one({
+        "session_id": session.session_id,
+        "plan_id": req.plan_id,
+        "amount": plan["amount"],
+        "currency": "usd",
+        "payment_status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "metadata": {"plan_id": req.plan_id, "plan_name": plan["name"]}
+    })
+    
+    return {"url": session.url, "session_id": session.session_id}
+
+@api_router.get("/billing/status/{session_id}")
+async def check_payment_status(session_id: str):
+    if not HAS_STRIPE or not STRIPE_API_KEY:
+        raise HTTPException(status_code=503, detail="Stripe not configured")
+    
+    stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url="")
+    status = await stripe_checkout.get_checkout_status(session_id)
+    
+    txn = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})
+    if txn and txn.get("payment_status") != status.payment_status:
+        await db.payment_transactions.update_one(
+            {"session_id": session_id},
+            {"$set": {"payment_status": status.payment_status, "status": status.status, "updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
+    
+    return {
+        "status": status.status,
+        "payment_status": status.payment_status,
+        "amount_total": status.amount_total,
+        "currency": status.currency,
+        "metadata": status.metadata
+    }
+
+@api_router.post("/webhook/stripe")
+async def stripe_webhook(request: Any):
+    from starlette.requests import Request
+    body = await request.body()
+    sig = request.headers.get("Stripe-Signature", "")
+    
+    if HAS_STRIPE and STRIPE_API_KEY:
+        try:
+            stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url="")
+            event = await stripe_checkout.handle_webhook(body, sig)
+            
+            if event.session_id:
+                await db.payment_transactions.update_one(
+                    {"session_id": event.session_id},
+                    {"$set": {"payment_status": event.payment_status, "event_type": event.event_type, "updated_at": datetime.now(timezone.utc).isoformat()}}
+                )
+        except Exception as e:
+            logger.error(f"Webhook error: {e}")
+    
+    return {"received": True}
+
+# =============================================================================
+# EMAIL NOTIFICATION ENDPOINTS
+# =============================================================================
+
+import resend
+
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
+SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "onboarding@resend.dev")
+
+if RESEND_API_KEY:
+    resend.api_key = RESEND_API_KEY
+
+class EmailSubscription(BaseModel):
+    email: str
+    frequency: str = "daily"
+
+@api_router.post("/notifications/subscribe")
+async def subscribe_notifications(sub: EmailSubscription):
+    existing = await db.email_subscriptions.find_one({"email": sub.email}, {"_id": 0})
+    if existing:
+        await db.email_subscriptions.update_one(
+            {"email": sub.email},
+            {"$set": {"frequency": sub.frequency, "active": True, "updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
+    else:
+        await db.email_subscriptions.insert_one({
+            "email": sub.email,
+            "frequency": sub.frequency,
+            "active": True,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        })
+    return {"ok": True, "message": f"Subscribed {sub.email} for {sub.frequency} notifications"}
+
+@api_router.post("/notifications/unsubscribe")
+async def unsubscribe_notifications(sub: EmailSubscription):
+    await db.email_subscriptions.update_one(
+        {"email": sub.email},
+        {"$set": {"active": False, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    return {"ok": True, "message": f"Unsubscribed {sub.email}"}
+
+@api_router.get("/notifications/subscriptions")
+async def get_subscriptions():
+    subs = await db.email_subscriptions.find({"active": True}, {"_id": 0}).to_list(100)
+    return {"subscriptions": subs}
+
+@api_router.post("/notifications/send-summary")
+async def send_daily_summary():
+    if not RESEND_API_KEY or RESEND_API_KEY == "re_test_placeholder":
+        raise HTTPException(status_code=503, detail="Email not configured. Add your Resend API key to backend/.env")
+    
+    subs = await db.email_subscriptions.find({"active": True}, {"_id": 0}).to_list(100)
+    if not subs:
+        return {"ok": False, "message": "No active subscribers"}
+    
+    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    reports_count = await db.reports.count_documents({"timestamp": {"$gte": today.isoformat()}})
+    total_count = await db.reports.count_documents({})
+    
+    html = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #18181b; color: #f4f4f5; padding: 32px; border-radius: 12px;">
+        <h1 style="color: #a78bfa; margin-bottom: 8px;">TikTok Bot Daily Summary</h1>
+        <p style="color: #71717a; font-size: 14px;">{datetime.now(timezone.utc).strftime('%B %d, %Y')}</p>
+        <div style="background: #27272a; border-radius: 8px; padding: 20px; margin: 20px 0;">
+            <h2 style="color: #f4f4f5; font-size: 18px; margin-bottom: 16px;">Today's Activity</h2>
+            <div style="display: flex; gap: 16px;">
+                <div style="text-align: center; flex: 1;">
+                    <div style="font-size: 32px; font-weight: bold; color: #4ade80;">{reports_count}</div>
+                    <div style="color: #71717a; font-size: 12px;">Comments Today</div>
+                </div>
+                <div style="text-align: center; flex: 1;">
+                    <div style="font-size: 32px; font-weight: bold; color: #a78bfa;">{total_count}</div>
+                    <div style="color: #71717a; font-size: 12px;">Total All Time</div>
+                </div>
+            </div>
+        </div>
+        <p style="color: #71717a; font-size: 12px; text-align: center;">TikTok Comments Dashboard - Automated Summary</p>
+    </div>
+    """
+    
+    sent = 0
+    for sub in subs:
+        try:
+            params = {
+                "from": SENDER_EMAIL,
+                "to": [sub["email"]],
+                "subject": f"TikTok Bot Report - {datetime.now(timezone.utc).strftime('%b %d')} | {reports_count} comments today",
+                "html": html
+            }
+            await asyncio.to_thread(resend.Emails.send, params)
+            sent += 1
+        except Exception as e:
+            logger.error(f"Failed to send to {sub['email']}: {e}")
+    
+    return {"ok": True, "sent": sent, "total_subscribers": len(subs)}
+
 # Include the router in the main app
 app.include_router(api_router)
 
