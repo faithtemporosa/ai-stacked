@@ -821,31 +821,32 @@ def stop_dm_automation():
     dm_log("⏹ Stopping DM automation...")
 
 # =============================================================================
-# POST FUNCTIONS - Upload/Create TikTok posts
+# REPOST FUNCTIONS - Auto-scrape and repost TikTok content
+# Monday: Brand content (Bump Connect/Kollabsy/Bump Syndicate)
+# Tue-Sun: Social media content
+# Max 2 reposts per profile per day
 # =============================================================================
 
 def post_log(message):
-    """Log for post operations"""
+    """Log for repost operations"""
     timestamp = datetime.now().strftime("%H:%M:%S")
-    log_entry = f"[{timestamp}] [POST] {message}"
+    log_entry = f"[{timestamp}] [REPOST] {message}"
     post_status["logs"].append(log_entry)
     print(log_entry)
     if len(post_status["logs"]) > 200:
         post_status["logs"] = post_status["logs"][-200:]
 
 def load_post_data():
-    """Load post queue and history"""
-    global post_queue
+    """Load repost tracker and history"""
+    global repost_tracker
     try:
-        with open(POST_QUEUE_FILE, 'r') as f:
-            data = json.load(f)
-            post_queue = data.get("queue", [])
-            print(f"✓ Loaded {len(post_queue)} posts in queue")
+        with open(REPOST_TRACKER_FILE, 'r') as f:
+            repost_tracker = json.load(f)
+            print(f"  Loaded repost tracker ({len(repost_tracker)} profiles)")
     except FileNotFoundError:
         pass
-    except Exception as e:
-        print(f"Error loading post queue: {e}")
-    
+    except:
+        pass
     try:
         with open(POST_HISTORY_FILE, 'r') as f:
             data = json.load(f)
@@ -853,377 +854,248 @@ def load_post_data():
             post_status["posts_made"] = len(post_status["history"])
     except FileNotFoundError:
         pass
-    except Exception as e:
-        print(f"Error loading post history: {e}")
+    except:
+        pass
 
 def save_post_data():
-    """Save post queue and history"""
+    """Save repost tracker and history"""
     try:
-        with open(POST_QUEUE_FILE, 'w') as f:
-            json.dump({"queue": post_queue}, f, indent=2)
-    except Exception as e:
-        print(f"Error saving post queue: {e}")
-    
+        with open(REPOST_TRACKER_FILE, 'w') as f:
+            json.dump(repost_tracker, f, indent=2)
+    except:
+        pass
     try:
         with open(POST_HISTORY_FILE, 'w') as f:
-            json.dump({
-                "history": post_status["history"],
-                "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            }, f, indent=2)
-    except Exception as e:
-        print(f"Error saving post history: {e}")
+            json.dump({"history": post_status["history"], "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}, f, indent=2)
+    except:
+        pass
 
-def upload_tiktok_video(page, video_path, caption, hashtags=None):
-    """Upload a video to TikTok using the web interface"""
+def get_reposts_today(profile_name):
+    today = datetime.now().strftime("%Y-%m-%d")
+    return repost_tracker.get(profile_name, {}).get(today, 0)
+
+def record_repost(profile_name):
+    today = datetime.now().strftime("%Y-%m-%d")
+    if profile_name not in repost_tracker:
+        repost_tracker[profile_name] = {}
+    repost_tracker[profile_name][today] = repost_tracker[profile_name].get(today, 0) + 1
+    save_post_data()
+
+def get_todays_search_terms():
+    """Monday = brand content, Tue-Sun = social media content"""
+    day = datetime.now().weekday()
+    if day == 0:
+        return BRAND_SEARCH_TERMS, "brand"
+    else:
+        return SOCIAL_MEDIA_SEARCH_TERMS, "social"
+
+def scrape_and_repost(page, profile_name, search_terms, content_type):
+    """Scrape TikTok search results and repost videos (max 2/day)"""
+    max_reposts = post_settings["max_reposts_per_day"]
+    remaining = max_reposts - get_reposts_today(profile_name)
+    if remaining <= 0:
+        post_log(f"  Already at {max_reposts} reposts today, skipping")
+        return 0
+    
+    post_log(f"  Need {remaining} repost(s) ({content_type} content)")
+    reposts_made = 0
+    search_term = random.choice(search_terms)
+    
     try:
-        post_log(f"  → Navigating to TikTok upload...")
-        page.goto("https://www.tiktok.com/upload", wait_until="domcontentloaded", timeout=60000)
+        encoded = search_term.replace(" ", "%20")
+        post_log(f"  Searching: '{search_term}'")
+        page.goto(f"https://www.tiktok.com/search/video?q={encoded}", wait_until="domcontentloaded", timeout=60000)
         time.sleep(5)
         
-        # Check if logged in
         if "login" in page.url.lower():
-            post_log(f"  ⚠ Not logged in - cannot upload")
-            return False, "not_logged_in"
+            post_log(f"  Not logged in, skipping")
+            return 0
         
-        # Wait for upload page to load
-        post_log(f"  → Looking for upload button...")
-        
-        # Try to find and click the upload area or file input
-        upload_result = page.evaluate('''() => {
-            // Look for iframe first (TikTok uses iframe for upload)
-            const iframe = document.querySelector('iframe[src*="upload"]');
-            if (iframe) {
-                return {success: false, method: 'iframe-detected', msg: 'Upload is in iframe'};
-            }
-            
-            // Look for file input
-            const fileInput = document.querySelector('input[type="file"]');
-            if (fileInput) {
-                return {success: true, method: 'file-input', inputId: fileInput.id || 'found'};
-            }
-            
-            // Look for upload button/area
-            const uploadSelectors = [
-                '[class*="upload-btn"]',
-                '[class*="Upload"]',
-                'button[aria-label*="upload" i]',
-                '[data-e2e="upload-button"]'
-            ];
-            
-            for (let sel of uploadSelectors) {
-                const el = document.querySelector(sel);
-                if (el) {
-                    el.click();
-                    return {success: true, method: sel};
-                }
-            }
-            
-            return {success: false, msg: 'No upload element found'};
-        }''')
-        
-        if not upload_result.get('success'):
-            post_log(f"  ⚠ Could not find upload element: {upload_result.get('msg')}")
-            return False, "no_upload_element"
-        
-        post_log(f"  ✓ Found upload ({upload_result.get('method')})")
-        
-        # Upload the file
-        post_log(f"  → Uploading video: {video_path}")
-        file_input = page.locator('input[type="file"]').first
-        file_input.set_input_files(video_path)
-        
-        # Wait for upload to complete
-        post_log(f"  → Waiting for upload to process...")
-        time.sleep(10)  # Initial wait for upload
-        
-        # Wait for processing (can take a while)
-        for i in range(60):  # Wait up to 5 minutes
-            progress = page.evaluate('''() => {
-                // Check for various progress indicators
-                const progressBar = document.querySelector('[class*="progress"]');
-                const processingText = document.body.innerText.toLowerCase();
-                
-                if (processingText.includes('100%') || processingText.includes('ready to post')) {
-                    return {done: true, percent: 100};
-                }
-                if (processingText.includes('processing') || processingText.includes('uploading')) {
-                    const match = processingText.match(/(\d+)%/);
-                    return {done: false, percent: match ? parseInt(match[1]) : 50};
-                }
-                return {done: true, percent: 100};
-            }''')
-            
-            if progress.get('done'):
-                break
-            
-            if i % 10 == 0:
-                post_log(f"  → Processing: {progress.get('percent', '?')}%")
-            time.sleep(5)
-        
-        post_log(f"  ✓ Video uploaded")
-        
-        # Add caption
-        post_log(f"  → Adding caption...")
-        caption_result = page.evaluate('''(caption) => {
-            const selectors = [
-                '[data-e2e="caption-input"]',
-                '[class*="DivCaptionInput"]',
-                '[class*="caption"] [contenteditable="true"]',
-                'div[contenteditable="true"][data-text="true"]',
-                'div[contenteditable="true"]'
-            ];
-            
-            for (let sel of selectors) {
-                const el = document.querySelector(sel);
-                if (el && el.offsetParent) {
-                    el.click();
-                    el.focus();
-                    // Clear existing content
-                    el.innerHTML = '';
-                    return {success: true, method: sel};
-                }
-            }
-            return {success: false};
-        }''', caption)
-        
-        if caption_result.get('success'):
-            # Build full caption with hashtags
-            full_caption = caption
-            if hashtags:
-                tags = " ".join([f"#{tag.replace('#', '').strip()}" for tag in hashtags if tag.strip()])
-                full_caption = f"{caption} {tags}"
-            
-            page.keyboard.type(full_caption, delay=30)
-            post_log(f"  ✓ Caption added")
-        else:
-            post_log(f"  ⚠ Could not find caption input")
-        
+        page.evaluate("window.scrollBy(0, 400)")
         time.sleep(2)
         
-        # Click post button
-        post_log(f"  → Posting...")
-        post_result = page.evaluate('''() => {
-            const selectors = [
-                '[data-e2e="post-button"]',
-                'button[class*="Post"]',
-                'button[class*="Submit"]',
-                'button:contains("Post")'
-            ];
-            
-            for (let sel of selectors) {
-                const el = document.querySelector(sel);
-                if (el && el.offsetParent && !el.disabled) {
-                    el.click();
-                    return {success: true, method: sel};
-                }
-            }
-            
-            // Try finding by text
-            const buttons = document.querySelectorAll('button');
-            for (let btn of buttons) {
-                if (btn.textContent.toLowerCase().includes('post') && !btn.disabled) {
-                    btn.click();
-                    return {success: true, method: 'text-search'};
-                }
-            }
-            
-            return {success: false};
+        video_links = page.evaluate('''() => {
+            const links = [];
+            document.querySelectorAll('a[href*="/video/"]').forEach(a => {
+                if (a.href && !links.includes(a.href)) links.push(a.href);
+            });
+            return links.slice(0, 10);
         }''')
         
-        if post_result.get('success'):
-            post_log(f"  ✓ Post button clicked ({post_result.get('method')})")
+        if not video_links:
+            search_term = random.choice(search_terms)
+            encoded = search_term.replace(" ", "%20")
+            post_log(f"  Retrying: '{search_term}'")
+            page.goto(f"https://www.tiktok.com/search/video?q={encoded}", wait_until="domcontentloaded", timeout=60000)
             time.sleep(5)
-            
-            # Check if post was successful
-            success_check = page.evaluate('''() => {
-                const text = document.body.innerText.toLowerCase();
-                return text.includes('uploaded') || text.includes('posted') || text.includes('success');
+            video_links = page.evaluate('''() => {
+                const links = [];
+                document.querySelectorAll('a[href*="/video/"]').forEach(a => {
+                    if (a.href && !links.includes(a.href)) links.push(a.href);
+                });
+                return links.slice(0, 10);
             }''')
-            
-            if success_check:
-                post_log(f"  ✓ Post successful!")
-                return True, "success"
-            else:
-                post_log(f"  ⚠ Post status unclear")
-                return True, "uncertain"
-        else:
-            post_log(f"  ⚠ Could not find post button")
-            return False, "no_post_button"
         
-    except Exception as e:
-        post_log(f"  ✗ Error uploading: {str(e)[:100]}")
-        return False, str(e)
-
-def run_post_automation(ws_endpoint, profile_name, posts_to_make):
-    """Run posting automation for a single profile"""
-    if not HAS_PLAYWRIGHT:
-        post_log("✗ Playwright not installed!")
-        return False
-    
-    posts_made = 0
-    
-    try:
-        with sync_playwright() as p:
-            browser = p.chromium.connect_over_cdp(ws_endpoint)
-            context = browser.contexts[0] if browser.contexts else browser.new_context()
-            page = context.pages[0] if context.pages else context.new_page()
-            
-            for post in posts_to_make:
-                if not post_status["running"]:
-                    post_log(f"⏹ Stopped by user")
-                    break
+        post_log(f"  Found {len(video_links)} videos")
+        random.shuffle(video_links)
+        
+        for video_url in video_links[:remaining + 3]:
+            if reposts_made >= remaining or not post_status["running"]:
+                break
+            try:
+                post_log(f"  Opening: ...{video_url[-30:]}")
+                page.goto(video_url, wait_until="domcontentloaded", timeout=30000)
+                time.sleep(4)
                 
-                video_path = post.get("video_path", "")
-                caption = post.get("caption", "")
-                hashtags = post.get("hashtags", [])
+                repost_ok = page.evaluate('''() => {
+                    const sels = ['button[aria-label*="Repost"]','[data-e2e="video-repost-button"]','button[data-e2e="undefined-Repost"]'];
+                    for (let s of sels) { const e = document.querySelector(s); if (e) { e.click(); return {ok:true,v:s}; } }
+                    const share = document.querySelector('[data-e2e="share-icon"]') || document.querySelector('[aria-label="Share"]');
+                    if (share) { share.click(); return {ok:false,v:'share',more:true}; }
+                    for (let b of document.querySelectorAll('button,[role="button"]')) {
+                        if ((b.textContent||'').toLowerCase().includes('repost')||(b.getAttribute('aria-label')||'').toLowerCase().includes('repost')) { b.click(); return {ok:true,v:'text'}; }
+                    }
+                    return {ok:false,v:'none'};
+                }''')
                 
-                if not video_path:
-                    post_log(f"  ⚠ No video path specified")
-                    continue
+                if repost_ok.get('more'):
+                    time.sleep(1.5)
+                    page.evaluate('''() => {
+                        for (let i of document.querySelectorAll('[class*="share"] button,[role="button"]')) {
+                            if ((i.textContent||'').toLowerCase().includes('repost')) { i.click(); return; }
+                        }
+                    }''')
+                    time.sleep(1)
+                    repost_ok = {"ok": True, "v": "share+repost"}
                 
-                post_log(f"  → Posting video: {video_path[:50]}...")
-                success, result = upload_tiktok_video(page, video_path, caption, hashtags)
-                
-                if success:
-                    posts_made += 1
-                    post_status["posts_made"] += 1
-                    
-                    post_status["history"].append({
+                if repost_ok.get('ok'):
+                    time.sleep(2)
+                    reposts_made += 1
+                    record_repost(profile_name)
+                    entry = {
                         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "profile": profile_name,
-                        "video": video_path,
-                        "caption": caption[:100],
-                        "status": "posted"
-                    })
-                    
-                    # Sync post to cloud
+                        "video": video_url,
+                        "caption": f"Reposted {content_type}: {search_term}",
+                        "status": "reposted",
+                        "content_type": content_type,
+                    }
+                    post_status["history"].append(entry)
+                    post_status["posts_made"] += 1
+                    save_post_data()
                     try:
-                        threading.Thread(target=sync_post_to_cloud, args=(post_status["history"][-1],), daemon=True).start()
+                        threading.Thread(target=sync_post_to_cloud, args=(entry,), daemon=True).start()
                     except:
                         pass
-                    
-                    # Mark as posted in queue
-                    post["status"] = "posted"
-                    post["posted_by"] = profile_name
-                    post["posted_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    
-                    save_post_data()
-                    
-                    # Wait between posts
-                    delay = random.randint(post_settings["min_delay"], post_settings["max_delay"])
-                    post_log(f"  ⏳ Waiting {delay}s before next post...")
-                    for _ in range(delay):
-                        if not post_status["running"]:
-                            break
-                        time.sleep(1)
+                    post_log(f"  Reposted! ({reposts_made}/{remaining})")
+                    if reposts_made < remaining:
+                        delay = random.randint(post_settings["min_delay"], post_settings["max_delay"])
+                        post_log(f"  Waiting {delay}s...")
+                        for _ in range(delay):
+                            if not post_status["running"]:
+                                break
+                            time.sleep(1)
                 else:
-                    post["status"] = f"failed: {result}"
-                    save_post_data()
-            
-            browser.close()
-            post_log(f"✓ Made {posts_made} posts from {profile_name}")
-            return posts_made > 0
-            
+                    post_log(f"  Repost button not found, next video")
+            except Exception as e:
+                post_log(f"  Error: {str(e)[:60]}")
     except Exception as e:
-        post_log(f"✗ Error: {e}")
-        return False
+        post_log(f"  Scrape error: {str(e)[:80]}")
+    return reposts_made
 
-def process_post_profile(profile_id, profile_name, posts_for_profile):
-    """Process a single profile for posting"""
-    post_log(f"▶ Starting posts: {profile_name}")
+def run_repost_for_profile(profile_id, profile_name):
+    """Open browser and run repost for one profile"""
+    search_terms, content_type = get_todays_search_terms()
+    day_name = datetime.now().strftime("%A")
+    post_log(f"[{profile_name}] {day_name}: {content_type} content")
     post_status["current_profile"] = profile_name
+    
+    if get_reposts_today(profile_name) >= post_settings["max_reposts_per_day"]:
+        post_log(f"  At daily limit, skipping")
+        return 0
     
     browser_data = open_browser(profile_id)
     if not browser_data:
-        post_log(f"  ✗ Failed to open browser")
-        return False
-    
+        post_log(f"  Failed to open browser")
+        return 0
     ws_endpoint = browser_data.get("ws", {}).get("puppeteer")
     if not ws_endpoint:
-        post_log(f"  ✗ No WebSocket endpoint")
+        post_log(f"  No WebSocket endpoint")
         close_browser(profile_id)
-        return False
+        return 0
     
     time.sleep(3)
-    success = run_post_automation(ws_endpoint, profile_name, posts_for_profile)
-    
+    reposts = 0
+    if HAS_PLAYWRIGHT:
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.connect_over_cdp(ws_endpoint)
+                context = browser.contexts[0] if browser.contexts else browser.new_context()
+                page = context.pages[0] if context.pages else context.new_page()
+                reposts = scrape_and_repost(page, profile_name, search_terms, content_type)
+                browser.close()
+        except Exception as e:
+            post_log(f"  Playwright error: {str(e)[:80]}")
     close_browser(profile_id)
-    post_log(f"  → Browser closed")
-    
-    return success
+    post_log(f"  Done. Reposts: {reposts}")
+    return reposts
 
-def start_post_automation():
-    """Start the posting automation process"""
+def start_repost_automation():
+    """Start automated repost across all profiles"""
     if post_status["running"]:
         return False
-    
-    pending_posts = [p for p in post_queue if p.get("status") == "pending"]
-    if not pending_posts:
-        post_log("⚠ No pending posts in queue!")
+    if not profiles:
+        post_log("No profiles loaded! Sync first.")
         return False
+    
+    search_terms, content_type = get_todays_search_terms()
+    day_name = datetime.now().strftime("%A")
+    today_str = datetime.now().strftime("%Y-%m-%d")
     
     post_status["running"] = True
     post_status["logs"] = []
     post_status["progress"] = 0
-    post_status["total"] = 0
+    post_status["total"] = len(profiles)
     
-    post_log("═" * 50)
-    post_log("Starting Post Automation...")
-    post_log(f"Posts in queue: {len(pending_posts)}")
-    post_log("═" * 50)
-    
-    if not profiles:
-        post_log("✗ No profiles loaded!")
-        post_status["running"] = False
-        return False
+    post_log("=" * 50)
+    post_log(f"Auto Repost - {day_name}, {today_str}")
+    post_log(f"Content: {'Brand (Bump Connect/Kollabsy/Bump Syndicate)' if content_type == 'brand' else 'Social Media'}")
+    post_log(f"Profiles: {len(profiles)} | Max {post_settings['max_reposts_per_day']}/profile/day")
+    post_log("=" * 50)
     
     def run():
+        total_reposts = 0
         try:
-            # Group posts by profile
-            for i, post in enumerate(pending_posts):
+            for i, profile in enumerate(profiles):
                 if not post_status["running"]:
                     break
-                
-                # Get target profiles for this post (or use all)
-                target_profiles = post.get("profiles", [])
-                if not target_profiles:
-                    # Post to first available profile
-                    target_profiles = [profiles[0]["name"]] if profiles else []
-                
-                for profile in profiles:
-                    if not post_status["running"]:
-                        break
-                    
-                    profile_name = profile.get("name", profile.get("user_id"))
-                    
-                    # Check if this profile should post this video
-                    if target_profiles and profile_name not in target_profiles:
-                        continue
-                    
-                    profile_id = profile.get("user_id")
-                    
-                    post_status["progress"] = i + 1
-                    post_status["total"] = len(pending_posts)
-                    
-                    process_post_profile(profile_id, profile_name, [post])
-                    break  # Only post once per video
-                    
+                pid = profile.get("user_id")
+                pname = profile.get("name", pid)
+                post_status["progress"] = i + 1
+                total_reposts += run_repost_for_profile(pid, pname)
+                if i < len(profiles) - 1 and post_status["running"]:
+                    delay = random.randint(30, 60)
+                    post_log(f"Next profile in {delay}s...")
+                    for _ in range(delay):
+                        if not post_status["running"]:
+                            break
+                        time.sleep(1)
         except Exception as e:
-            post_log(f"✗ Fatal error: {e}")
+            post_log(f"Fatal: {e}")
         finally:
             post_status["running"] = False
             post_status["current_profile"] = None
-            post_log("═" * 50)
-            post_log(f"Post Automation Complete. Total posts: {post_status['posts_made']}")
-            post_log("═" * 50)
+            post_status["last_run"] = today_str
+            post_log("=" * 50)
+            post_log(f"Done! Total reposts: {total_reposts}")
+            post_log("=" * 50)
     
     threading.Thread(target=run, daemon=True).start()
     return True
 
 def stop_post_automation():
-    """Stop the posting automation"""
     post_status["running"] = False
-    post_log("⏹ Stopping post automation...")
+    post_log("Stopping repost automation...")
 
 def fetch_adspower_profiles():
     """Fetch profiles from AdsPower API"""
