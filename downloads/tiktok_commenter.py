@@ -2774,6 +2774,7 @@ DASHBOARD_HTML = """
         <div class="tabs">
             <div class="tab active" onclick="showTab('main')">🎮 Control</div>
             <div class="tab" onclick="showTab('dm')">💬 DM</div>
+            <div class="tab" onclick="showTab('replies')">📨 Replies</div>
             <div class="tab" onclick="showTab('post')">📤 Post</div>
             <div class="tab" onclick="showTab('report')">📊 Report</div>
         </div>
