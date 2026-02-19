@@ -67,6 +67,8 @@ comments_cache = {}
 commented_videos = set()
 
 REPORT_FILE = "tiktok_comments_history.json"
+DM_REPORT_FILE = "tiktok_dm_history.json"
+DM_TARGETS_FILE = "tiktok_dm_targets.json"
 
 settings = {
     "min_delay": MIN_DELAY_BETWEEN_COMMENTS,
@@ -74,6 +76,38 @@ settings = {
     "videos_per_profile": VIDEOS_PER_PROFILE,
     "parallel_browsers": 2,  # Fixed at 2 browsers at a time
     "target_hashtag": "",  # Target hashtag to search (e.g., #socialmedia)
+}
+
+# DM Settings
+dm_settings = {
+    "enabled": False,
+    "max_dms_per_profile": 50,
+    "min_delay": 60,
+    "max_delay": 120,
+    "target_mode": "specific",  # specific, commenters, followers, hashtag
+    "target_hashtag": "",
+    "target_account": "",  # For followers mode
+    "target_video_url": "",  # For commenters mode
+}
+
+# DM Targets and Messages
+dm_targets = {
+    "specific_users": [],  # List of usernames
+    "messages": {
+        "default": "Hey! Check out bumpconnect.xyz for amazing creator tools!",
+        "groups": {}  # {"group_name": {"users": [], "message": "..."}}
+    }
+}
+
+dm_status = {
+    "running": False,
+    "current_profile": None,
+    "progress": 0,
+    "total": 0,
+    "dms_sent": 0,
+    "logs": [],
+    "report": [],
+    "sent_to": set()  # Track who we've already DMed
 }
 
 automation_status = {
