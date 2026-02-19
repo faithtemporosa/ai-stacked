@@ -2924,6 +2924,63 @@ DASHBOARD_HTML = """
             </div>
         </div>
         
+        <!-- REPLIES TAB - AI Reply Management -->
+        <div id="tab-replies" style="display:none">
+            <div class="card">
+                <div class="card-title"><span>📨 AI Reply Management</span></div>
+                <div style="background:#1e1b4b;border:1px solid #4c1d95;border-radius:8px;padding:12px;margin-bottom:12px;">
+                    <div style="font-size:13px;color:#c4b5fd;font-weight:bold;margin-bottom:6px;">How It Works</div>
+                    <div style="font-size:12px;color:#a1a1aa;line-height:1.8;">
+                        <b style="color:#4ade80;">1.</b> Click "Check for Replies" to scan DM inbox for responses<br>
+                        <b style="color:#60a5fa;">2.</b> AI (GPT-5.2) drafts professional replies automatically<br>
+                        <b style="color:#fbbf24;">3.</b> Review and approve/edit drafts below<br>
+                        <b style="color:#c4b5fd;">4.</b> Click "Send All Approved" to send replies from each profile
+                    </div>
+                </div>
+                <div class="stats">
+                    <div class="stat"><div class="stat-value" id="reply-pending">0</div><div class="stat-label">Pending Check</div></div>
+                    <div class="stat"><div class="stat-value" id="reply-drafts">0</div><div class="stat-label">Drafts Ready</div></div>
+                    <div class="stat"><div class="stat-value" id="reply-approved">0</div><div class="stat-label">Approved</div></div>
+                    <div class="stat"><div class="stat-value" id="reply-sent">0</div><div class="stat-label">Sent</div></div>
+                </div>
+                <p class="center" style="color:#71717a;margin:10px 0" id="reply-status">Ready - Click "Check for Replies" to start</p>
+                <div class="center" style="margin-top:15px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+                    <button class="btn btn-primary" id="btn-check-replies" onclick="checkReplies()">📥 Check for Replies</button>
+                    <button class="btn btn-success" id="btn-send-approved" onclick="sendApproved()">📤 Send All Approved</button>
+                    <button class="btn btn-secondary" onclick="refreshReplies()">🔄 Refresh</button>
+                </div>
+            </div>
+            
+            <div class="card" style="margin-top:20px;">
+                <div class="card-title"><span>🤖 AI Draft Replies (Needs Approval)</span><span style="color:#fbbf24" id="draft-count">0</span></div>
+                <div id="draft-replies-container" style="max-height:400px;overflow:auto;">
+                    <div style="text-align:center;color:#71717a;padding:20px;">No draft replies. Click "Check for Replies" to find new messages.</div>
+                </div>
+            </div>
+            
+            <div class="card" style="margin-top:20px;">
+                <div class="card-title"><span>✅ Approved Replies (Ready to Send)</span><span style="color:#4ade80" id="approved-count">0</span></div>
+                <div id="approved-replies-container" style="max-height:300px;overflow:auto;">
+                    <div style="text-align:center;color:#71717a;padding:20px;">No approved replies yet.</div>
+                </div>
+            </div>
+            
+            <div class="card" style="margin-top:20px;">
+                <div class="card-title"><span>Reply Log</span><button class="btn btn-secondary" style="padding:4px 8px" onclick="clrReplyLog()">Clear</button></div>
+                <div class="logs" id="reply-logs">Ready to check for replies...</div>
+            </div>
+            
+            <div class="card" style="margin-top:20px;">
+                <div class="card-title"><span>📜 Sent Reply History</span><span style="color:#71717a" id="sent-count">0</span></div>
+                <div style="max-height:200px;overflow:auto">
+                    <table class="report-table">
+                        <thead><tr><th>Sent At</th><th>Profile</th><th>To</th><th>Their Message</th><th>Our Reply</th></tr></thead>
+                        <tbody id="sent-replies-table"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
         <!-- POST TAB (Auto Repost Scheduler) -->
         <div id="tab-post" style="display:none">
             <div class="grid">
