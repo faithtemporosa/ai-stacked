@@ -25,75 +25,107 @@ The current goal is to create a tool that automatically posts promotional commen
 **User's preferred language**: English
 
 **what currently exists?**
-A single-file Python script named . This script runs a local Flask web server, providing a dashboard to control the TikTok commenting bot. It uses Playwright for browser automation and  to communicate with the local AdsPower API. It stores comment history in a local file named . The initial full-stack React/FastAPI codebase exists but is currently dormant.
+A single-file Python script named  (located at ). This script runs a local Flask web server, providing a dashboard to control the TikTok commenting bot. It uses Playwright for browser automation and  to communicate with the local AdsPower API. It stores comment history in .
+The dormant full-stack React/FastAPI codebase has been reactivated to build a public, real-time reporting dashboard. The FastAPI backend () now includes authentication and reporting endpoints integrated with MongoDB. The React frontend () displays comments, statistics, live logs, and includes an authentication flow.
+However, the user has recently provided an updated  which uses **Supabase** for cloud synchronization in  and relies on **Craco** for frontend builds, which conflicts with the agent's implemented **Render/MongoDB Atlas** backend for the public dashboard.
 
 **Last working item**:
-*   **Last item agent was working**: The user requested a public, real-time reporting dashboard for their team to view. The agent planned a hybrid approach where the local script sends data to a cloud API, which then feeds a public-facing website.
-*   **Status**: NOT STARTED
+*   **Last item agent was working**: Implementing a Post to TikTok feature in . This involves adding functions to allow the bot to post content to the user's own TikTok profiles.
+*   **Status**: IN PROGRESS
 *   **Agent Testing Done**: N
-*   **Which testing method agent to use?**: both. The backend cloud API needs to be created and tested with . The new public-facing frontend page will need to be created and tested by the frontend testing agent.
+*   **Which testing method agent to use?**: Backend testing by running  locally and verifying functionality, along with potentially using a screenshot tool for UI interaction.
 *   **User Testing Done**: N
 
 **All Pending/In progress Issue list**:
-*   **Issue 1 (P0):** Implement the public real-time reporting dashboard.
-*   **Issue 2 (P1):** The core TikTok automation is unstable and frequently fails.
-*   **Issue 3 (P2):** User may face environment setup issues again.
-
-**Issues Detail**:
-*   **Issue 1: Implement Public Real-time Reporting Dashboard**
-    *   **Attempted fixes**: None yet. This is a new feature request.
+*   **Issue 1 (P0): Architectural Mismatch - Supabase vs. Render/MongoDB**: The user's provided  is configured to use Supabase for cloud syncing, while the new public dashboard's backend () is built to integrate with Render/FastAPI/MongoDB Atlas. This is a critical conflict that needs resolution.
+    *   **Attempted fixes**: The agent initially built the cloud sync to Render/MongoDB, but then reverted to the user's Supabase code structure per explicit instruction.
     *   **Next debug checklist**:
-        1.  In , create a new FastAPI endpoint (e.g., ) to accept  requests with comment data.
-        2.  In the same file, create an endpoint (e.g., ) to serve the stored report data. Use a simple file-based JSON store or a proper database for persistence.
-        3.  In , modify the  or a similar function to send an HTTP  request to the new cloud endpoint () with the comment details upon success.
-        4.  Create a new React component or a simple standalone frontend application that fetches data from  and displays it in a read-only table. Implement auto-refresh for real-time updates.
-    *   **Why fix this issue and what will be achieved with the fix?**: This fulfills the user's explicit request for a shared reporting dashboard for their team.
-    *   **Status**: NOT STARTED
-    *   **Is recurring issue?**: N
+        1.  Clarify with the user the desired cloud data storage solution: Supabase or Render/MongoDB.
+        2.  If Supabase, re-implement the  to use Supabase, or guide the user to deploy their Supabase-integrated frontend/backend.
+        3.  If Render/MongoDB, re-update  to send data to the Render API.
+    *   **Why fix this issue and what will be achieved with the fix?**: This is a fundamental architectural conflict preventing data flow between the local script and the public dashboard, making the public dashboard non-functional for real data.
+    *   **Status**: BLOCKED (on user decision)
+    *   **Is recurring issue?**: Y (due to user providing new code with different architecture)
     *   **Should Test frontend/backend/both after fix?**: Both
+    *   **Blocked on other issue**: User decision on desired cloud solution.
+
+*   **Issue 2 (P0): Frontend Deployment Failure (Vercel)**: The frontend deployment to Vercel is consistently failing, primarily due to dependency conflicts () and module resolution issues ( imports) stemming from the  configuration in the user's provided code.
+    *   **Attempted fixes**: Agent tried simplifying , adding  for , changing  to yarn install v1.22.22
+[1/4] Resolving packages...
+[2/4] Fetching packages...
+[3/4] Linking dependencies...
+[4/4] Building fresh packages...
+success Saved lockfile.
+Done in 0.07s. in Vercel settings, and fixing  imports to relative paths. The user then provided new code that re-introduced these issues.
+    *   **Next debug checklist**:
+        1.  Ensure all  imports are correctly configured for  or converted to relative paths if  is removed.
+        2.  Resolve  and  version conflicts in .
+        3.  Ensure  or yarn install v1.22.22
+[1/4] Resolving packages...
+success Already up-to-date.
+Done in 0.05s. is properly configured as the install command in Vercel.
+    *   **Why fix this issue and what will be achieved with the fix?**: The frontend is not deployable, preventing the public dashboard from being accessible.
+    *   **Status**: IN PROGRESS / BLOCKED (on user's code consistency/Vercel settings)
+    *   **Is recurring issue?**: Y
+    *   **Should Test frontend/backend/both after fix?**: Frontend
+    *   **Blocked on other issue**: None directly, but resolution depends on final code structure (Supabase vs Render).
+
+*   **Issue 3 (P1): TikTok Automation Stability**: The core TikTok automation in  remains unstable and frequently fails. The agent attempted fixes with retry logic and updated selectors, but the latest user-provided code might have reverted some of these improvements.
+    *   **Attempted fixes**: Agent added retry logic, updated selectors, and improved error handling for video processing.
+    *   **Next debug checklist**: Re-validate Playwright selectors and JS evaluation scripts against TikTok's current structure in , especially for navigation, video interaction, and commenting.
+    *   **Why fix this issue and what will be achieved with the fix?**: The core functionality of the bot depends on its stability.
+    *   **Status**: UNKNOWN / POTENTIALLY REVERTED
+    *   **Is recurring issue?**: Y
+    *   **Should Test frontend/backend/both after fix?**: Backend (local script)
     *   **Blocked on other issue**: None
 
-*   **Issue 2: The core TikTok automation is unstable**
-    *   **Attempted fixes**: The agent made numerous attempts: increasing timeouts, using various element selectors (including  and JS injection), adding logic for grid vs. video views, and improving logging. The user's last log shows it's still failing with timeouts and inability to find video elements.
-    *   **Next debug checklist**:
-        1.  Examine the latest user logs:  and . This indicates the script fails to load the TikTok page or find the video elements on it.
-        2.  Focus on the  and  functions in .
-        3.  Re-validate all Playwright selectors and JS evaluation scripts against the current TikTok website structure, especially for hashtag grid pages.
-        4.  Pay close attention to the logic that clicks a video from the grid, waits for the video page to load, comments, and then navigates back. This is a critical failure point.
-        5.  Consider adding more robust waits (e.g.,  with a longer timeout) instead of fixed  calls.
-    *   **Why fix this issue and what will be achieved with the fix?**: The script's primary purpose is to comment on videos. If this fails, the entire application is non-functional.
-    *   **Status**: IN PROGRESS
+*   **Issue 4 (P2): User Environment Setup Issues**: The user has faced Python environment issues previously. Clear, copy-pasteable commands with  are always needed.
+    *   **Attempted fixes**: Agent consistently provided detailed commands.
+    *   **Next debug checklist**: Continue providing clear instructions.
+    *   **Why fix this issue and what will be achieved with the fix?**: Ensures the user can run the local script effectively.
+    *   **Status**: IN PROGRESS (ongoing)
     *   **Is recurring issue?**: Y
-    *   **Should Test frontend/backend/both after fix?**: Backend (the Python script is the backend in this context).
+    *   **Should Test frontend/backend/both after fix?**: NA
     *   **Blocked on other issue**: None
 
 **In progress Task List**:
-*   **Task 1: Build cloud backend for real-time reporting.**
-    *   **Where to resume**: Modify  to add API endpoints for receiving and serving report data.
-    *   **What will be achieved with this?**: This will create the necessary cloud infrastructure to support the public dashboard.
-    *   **Status**: NOT STARTED
-    *   **Should Test frontend/backend/both after fix?**: Backend
-    *   **Blocked on something**: None.
+*   **Task 1 (P0): Implement Post to TikTok Feature**:
+    *   **Where to resume**: Continuing to add functions and API routes for posting content to TikTok profiles within .
+    *   **What will be achieved with this?**: Extends the bot's capabilities to include content posting, meeting a new user requirement.
+    *   **Status**: IN PROGRESS (just started, backend/local script only)
+    *   **Should Test frontend/backend/both after fix?**: Backend (local script)
+    *   **Blocked on something**: None
 
 **Upcoming and Future Tasks**
 *   **Upcoming Tasks:**
-    *   **P0:** Create the public-facing frontend dashboard that consumes the new reporting API.
+    *   **P0:** Integrate DM and Post features with the public dashboard (requires resolving architectural mismatch first).
 *   **Future Tasks:**
-    *   **P1:** Productize the solution into a Hybrid SaaS application, as requested by the user. This involves creating a full cloud dashboard with user accounts, billing (e.g., Stripe), and a downloadable local agent that users install.
+    *   **P1:** Productize the solution into a Hybrid SaaS application with user accounts, billing, and a downloadable local agent.
 
 **Completed work in this session**
-- **Pivot from Rebotou to TikTok**: Shifted the entire project from automating a Chrome extension to directly commenting on TikTok.
-- **Local Dashboard Creation**: Built a local web dashboard using Python (Flask) to control the bot ().
-- **Automation Logic**:
-  - Integrated with AdsPower API to launch profiles.
-  - Implemented parallel execution (hardcoded to 2 browsers).
-  - Developed logic to target hashtags, handle TikTok's grid view, and skip non-logged-in profiles.
-- **Comment Strategy**: Evolved from using Google Sheets to using built-in, brand-aware promotional comments that include website URLs.
-- **Persistent Reporting**: Created a local reporting system that saves all comment history to  and displays it in the dashboard with filters and a CSV export option.
-- **User Support**: Guided the user through setting up their Python environment on macOS, including .
+- **Public Real-time Reporting Dashboard (P0)**:
+    - FastAPI backend endpoints (, , , , ) added to .
+    - React frontend dashboard created () with stats cards, comments by brand, reports table, filters, live/refresh buttons, and Live Automation Logs panel.
+    - Local  modified to send comment data and live logs to cloud API.
+    - Sync to Cloud button and JS functions added to the local dashboard HTML ().
+    - Import Data button and  added to the public cloud dashboard.
+- **SaaS Features - User Authentication (P2)**:
+    - Auth models and endpoints (, ) added to .
+    - Frontend (, , ) updated for login/register and auth context.
+- **DM (Direct Message) Feature (P0)**:
+    - DM functionality (, , etc.) and API routes added to .
+    - New 💬 DM tab with UI and JavaScript functions added to the local dashboard HTML ().
+- **Deployment Assistance**: Provided comprehensive step-by-step guidance for deploying to MongoDB Atlas, Render (backend), and Vercel (frontend) for free hosting.
+- **Bug Fixes**:
+    - Removed duplicate reports from MongoDB Atlas (initial 10k+ duplicates reduced to 5394 unique).
+    - Fixed syntax error in  related to  block.
+    - Assisted user in resolving  error in  for Render deployment.
+    - Debugged and provided solutions for MongoDB authentication errors on Render.
+    - Attempted to resolve frontend Vercel deployment issues ( version conflicts,  imports) by suggesting  modifications, , Vercel settings, and cleaning up /.
+- **Code Harmonization**: After the user uploaded , the agent copied all files exactly, ensuring the current environment matches the user's provided codebase (including Supabase configuration and Craco for frontend).
 
 **Earlier issues found/mentioned but not fixed**
-*   The fundamental instability of the TikTok automation script is a recurring theme that has been patched multiple times but not definitively solved. It is listed under All Pending/In progress Issue list.
+*   The fundamental instability of the TikTok automation script (P1) is a recurring issue. While agent attempted fixes, the latest user-provided code might have reverted some of these.
 
 **Known issue recurrence from previous fork**
 *   N/A
@@ -103,27 +135,45 @@ A single-file Python script named . This script runs a local Flask web server, p
 
 **Key Technical Concepts**
 - **Browser Automation**: Playwright
-- **Web UI**: Flask (serving a single HTML string with embedded JS/CSS)
-- **API Interaction**:  for AdsPower API
+- **Local Web UI**: Flask (serving a single HTML string with embedded JS/CSS)
+- **Cloud Backend**: FastAPI
+- **Cloud Frontend**: React
+- **API Interaction**:  for AdsPower API,  for cloud API (initially agent's Render/FastAPI, but  now uses Supabase client functions from user's code).
 - **Concurrency**: Python's  for parallel browser execution.
-- **Web Scraping**: Using Playwright selectors and injected JavaScript to interact with TikTok's dynamic UI.
+- **Web Scraping**: Playwright selectors and injected JavaScript.
+- **Authentication**: JWT-based authentication in FastAPI.
+- **Database**: MongoDB Atlas (for cloud backend), Supabase (configured in local  and frontend code from user's zip).
+- **Frontend Build Tools**: Craco (from user's code) for custom Webpack configurations.
 
 **key DB schema**
-*   No SQL/NoSQL DB is used. Data is stored in  as a JSON array of objects:
-    - : 
+*   **Local**: : 
+*   **Cloud (MongoDB Atlas)**:  collection: 
 
 **changes in tech stack**
-*   The project started as a standard React/FastAPI application but pivoted to a single-file Python/Flask script for local execution. The latest requirement for a public dashboard will re-introduce the React/FastAPI components in a hybrid architecture.
+*   The project now explicitly incorporates a hybrid architecture: local Python/Flask bot () and a cloud-hosted FastAPI/React public dashboard.
+*   Shift from file-based storage for cloud data to MongoDB Atlas in the FastAPI backend.
+*   Introduction of Supabase client in  and React frontend (from user's provided code), which conflicts with the established Render/MongoDB Atlas backend.
+*   Introduction of Craco for frontend builds to handle path aliases.
 
 **All files of reference**
-*   : The current core application file. Contains the automation logic and local web dashboard.
-*   : Stores all comment data locally.
-*   : The dormant backend file that needs to be updated for the cloud reporting feature.
-*   : The dormant frontend file to be used as a base for the public reporting dashboard.
+*   : The core local automation script, heavily modified for cloud sync (Supabase client), DM functionality, and Post to TikTok feature.
+*   : Stores all local comment data.
+*   : FastAPI backend with authentication, reporting, and live log endpoints, integrated with MongoDB Atlas.
+*   : The main React component for the public dashboard, configured to use Supabase.
+*   : React context for managing user authentication state.
+*   : React component for user login and registration.
+*   : Supabase client configuration for the frontend.
+*   : Frontend dependencies, including , , , etc.
+*   : Craco configuration for Webpack, handling path aliases.
+*   : Python dependencies for the FastAPI backend.
+*   : Configuration to allow .
+*   : Product Requirements Document.
+*   : Step-by-step guide for Vercel/Render/MongoDB Atlas deployment.
 
 **Areas that need refactoring**:
-*    is a monolithic file containing backend, frontend, and automation logic. It should be split into multiple modules for better maintainability.
-*   The use of global variables for state management is fragile and should be refactored into a more structured approach, such as using classes.
+*   **Architectural Consistency**: Resolve the Supabase vs. Render/MongoDB conflict.
+*   ****: Still a monolithic file combining UI, automation, and API logic. It should be modularized.
+*   **Frontend Build Process**: Stabilize the Craco/Webpack configuration for Vercel deployment.
 
 **key api endpoints**
 *   **Local ( on ):**
@@ -131,127 +181,73 @@ A single-file Python script named . This script runs a local Flask web server, p
     *   : Fetches profiles.
     *   : Starts the bot.
     *   : Streams logs to the UI.
-    *   : Downloads the report.
-*   **Cloud (To be created):**
-    *   : To receive comment data from the local script.
-    *   : To serve data to the public dashboard.
+    *   : Downloads the local report.
+    *   : Manages DM targets.
+    *   : Starts DM automation.
+    *   : Streams DM logs.
+    *   : Stores DM history.
+    *   : Starts TikTok posting.
+*   **Cloud (FastAPI ):**
+    *   : User registration.
+    *   : User login, returns JWT.
+    *   : Receives comment data from the local script.
+    *   : Serves all report data.
+    *   : Provides aggregated statistics.
+    *   : Serves live automation logs.
+    *   : Exports report data to CSV.
 
 **Critical Info for New Agent**
-*   The user is on a MacBook Air M2; be mindful of performance. The parallel browser count is hardcoded to  in  for stability.
-*   The user has previously had trouble with their Python environment. Provide clear, copy-pasteable commands, always including  before running 
-Usage:   
-  pip <command> [options]
-
-Commands:
-  install                     Install packages.
-  lock                        Generate a lock file.
-  download                    Download packages.
-  uninstall                   Uninstall packages.
-  freeze                      Output installed packages in requirements format.
-  inspect                     Inspect the python environment.
-  list                        List installed packages.
-  show                        Show information about installed packages.
-  check                       Verify installed packages have compatible 
-dependencies.
-  config                      Manage local and global configuration.
-  search                      Search PyPI for packages.
-  cache                       Inspect and manage pip's wheel cache.
-  index                       Inspect information available from package 
-indexes.
-  wheel                       Build wheels from your requirements.
-  hash                        Compute hashes of package archives.
-  completion                  A helper command used for command completion.
-  debug                       Show information useful for debugging.
-  help                        Show help for commands.
-
-General Options:
-  -h, --help                  Show help.
-  --debug                     Let unhandled exceptions propagate outside the
-                              main subroutine, instead of logging them to
-                              stderr.
-  --isolated                  Run pip in an isolated mode, ignoring
-                              environment variables and user configuration.
-  --require-virtualenv        Allow pip to only run in a virtual environment;
-                              exit with an error otherwise.
-  --python <python>           Run pip with the specified Python interpreter.
-  -v, --verbose               Give more output. Option is additive, and can be
-                              used up to 3 times.
-  -V, --version               Show version and exit.
-  -q, --quiet                 Give less output. Option is additive, and can be
-                              used up to 3 times (corresponding to WARNING,
-                              ERROR, and CRITICAL logging levels).
-  --log <path>                Path to a verbose appending log.
-  --no-input                  Disable prompting for input.
-  --keyring-provider <keyring_provider>
-                              Enable the credential lookup via the keyring
-                              library if user input is allowed. Specify which
-                              mechanism to use [auto, disabled, import,
-                              subprocess]. (default: auto)
-  --proxy <proxy>             Specify a proxy in the form
-                              scheme://[user:passwd@]proxy.server:port.
-  --retries <retries>         Maximum attempts to establish a new HTTP
-                              connection. (default: 5)
-  --timeout <sec>             Set the socket timeout (default 15 seconds).
-  --exists-action <action>    Default action when a path already exists:
-                              (s)witch, (i)gnore, (w)ipe, (b)ackup, (a)bort.
-  --trusted-host <hostname>   Mark this host or host:port pair as trusted,
-                              even though it does not have valid or any HTTPS.
-  --cert <path>               Path to PEM-encoded CA certificate bundle. If
-                              provided, overrides the default. See 'SSL
-                              Certificate Verification' in pip documentation
-                              for more information.
-  --client-cert <path>        Path to SSL client certificate, a single file
-                              containing the private key and the certificate
-                              in PEM format.
-  --cache-dir <dir>           Store the cache data in <dir>.
-  --no-cache-dir              Disable the cache.
-  --disable-pip-version-check
-                              Don't periodically check PyPI to determine
-                              whether a new version of pip is available for
-                              download. Implied with --no-
-                              index.
-  --no-color                  Suppress colored output.
-  --use-feature <feature>     Enable new functionality, that may be backward
-                              incompatible.
-  --use-deprecated <feature>  Enable deprecated functionality, that will be
-                              removed in the future.
-  --resume-retries <resume_retries>
-                              Maximum attempts to resume or restart an
-                              incomplete download. (default: 5) or .
-*   The main task is to build a **public, real-time reporting website**. This requires creating cloud API endpoints in  and a new frontend page. The local  script must be modified to send its report data to this new cloud API.
-*   The TikTok automation logic is very brittle and is the source of most user issues. Be prepared to debug Playwright selectors and JS injection scripts in . The last known failure was  and  errors.
+*   **Architectural Bifurcation**: The agent has built a functional FastAPI/React dashboard with MongoDB Atlas, but the user's recently provided code in  and  uses **Supabase** for data synchronization. The new agent **must clarify with the user which cloud backend they intend to use (Supabase or Render/MongoDB Atlas)** before proceeding with any cloud-related tasks or deployment fixes.
+*   **Frontend Deployment Blocked**: The frontend deployment to Vercel is *still failing* due to unresolved dependency conflicts and Craco-related build issues from the user's provided code. This is a top priority to resolve.
+*   **Incomplete Features**: The Post to TikTok feature is currently being developed in .
+*   **Emergent Branding**: The user wishes to remove Made with Emergent branding. The agent has provided instructions for deploying to Vercel/Render (free, no branding) or deploying to Emergent production (paid, no branding).
+*   **Code Quality**: The  file has grown significantly and needs modularization.
 
 **documents and test reports created in this job**
 *   
+*    (from testing public dashboard)
+*   
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **there should be a public website that my other teammates can view the reports real time** - PENDING. This is the main task.
-2.  **how to run it** - Completed. Agent provided instructions.
-3.  **# in searchbar is stuck on grid and is not opening the comments of videos** - In Progress. Agent implemented a fix, but it's part of the larger instability issue.
-4.  **how baout the links it should be there or just www.bumpconnect.xyz...** - Completed.
-5.  **make the comments natural like and not scammy looking** - Completed.
-6.  **make the comments include the download link** - Completed and then revised based on user feedback.
-7.  **after searching and its grid like , its should be clicking on the video...** - In Progress. Part of the core instability issue.
-8.  **its not adding the comments look** - In Progress. Agent identified this as an issue with handling hashtag grid view.
-9.  **no, it should promote the brands** - Completed.
-10. **change the comments to something like hey have you checked out bump connect? etc** - Completed.
+1.  **i also need to add posts on my own tiktok profiles** - PENDING. Agent has just started implementing this.
+2.  **no, the code should match the files!** - COMPLETED. Agent copied user's uploaded files exactly.
+3.  **follow my code** - COMPLETED. Agent committed to following user's code (Supabase, Craco).
+4.  **did you follow the code from the files? follow it strictly** - COMPLETED. Agent confirmed understanding and re-checked files.
+5.  **where are you pushing it in github** - COMPLETED. Agent clarified user needs to use Save to GitHub.
+6.  **whats the url in vercel** - COMPLETED. Agent explained how to find it.
+7.  **this is the latest files - make sure to update the code base on this files** - COMPLETED. User provided a zip file, and the agent ingested it and aligned the local codebase.
+8.  **still the same error as before** - PENDING (Vercel deployment issue).
+9.  **added 1302 packages in 1m...** - PENDING (Vercel deployment issue, new error regarding ).
+10. **still the same** - PENDING (Vercel deployment issue,  conflict).
 
 **Project Health Check:**
-*   **Broken**: The core TikTok commenting functionality is unreliable and is the primary source of user-reported issues and recurring failures.
+*   **Broken**:
+    *   Frontend deployment to Vercel is currently failing.
+    *   The  (local script) is architecturally mismatched with the  (cloud dashboard), as the local script uses Supabase but the cloud backend uses MongoDB.
+*   **Working**:
+    *   FastAPI backend with auth and reporting.
+    *   Local dashboard with DM feature (currently being extended with posting).
+    *   Basic functionality of the public dashboard (though it cannot fetch real data due to architectural conflict).
 
 **3rd Party Integrations**
 *   **AdsPower**: Uses local API (). No key needed.
-*   **Google Sheets**: Previously used but now **removed** from the project.
+*   **MongoDB Atlas**: Used by the FastAPI backend for cloud reporting. User credentials ( or similar) are needed to configure .
+*   **Supabase**: Integrated into  and  (from user's uploaded code). Requires Supabase Project URL and Anon Key.
 
 **Testing status**
-*   **Testing agent used after significant changes**: NO. The agent has relied on user feedback and log analysis for debugging the complex local script. This is a significant gap.
-*   **Troubleshoot agent used after agent stuck in loop**: NO
-*   **Test files created**: None
-*   **Known regressions**: The script's ability to find and interact with TikTok's UI elements is a constant point of regression.
+*   **Testing agent used after significant changes**: YES (for the initial public dashboard rollout).
+*   **Troubleshoot agent used after agent stuck in loop**: NO.
+*   **Test files created**: None in this session.
+*   **Known regressions**:
+    *   The  automation stability is a recurring issue.
+    *   Frontend Vercel deployment issues are a recurring roadblock despite multiple fixes.
+    *   Architectural inconsistency between local script (Supabase) and cloud backend (MongoDB).
 
 **Credentials to test flow:**
-*   None required. The script relies on the user being logged into their AdsPower client and their TikTok accounts within the AdsPower profiles.
+*   MongoDB Atlas connection string (e.g., ).
+*   A  for FastAPI backend (e.g., ).
+*   Supabase Project URL and Anon Key (from user's Supabase project, if that's the chosen architecture).
 
 **What agent forgot to execute**
-*   The agent did not use the  to validate the complex and fragile Playwright script, despite multiple failures. This should have been a priority to create a stable baseline and catch regressions.
-*   The agent declared the task finished multiple times while the core functionality was still broken, leading to a long and inefficient feedback loop with the user.</analysis>
+*   The agent implemented the cloud reporting API to use Render/MongoDB Atlas but then ingested user's code that uses Supabase, leading to an architectural conflict that needs to be explicitly resolved.
+*   While fixes for frontend deployment errors were attempted, a stable deployment has not yet been achieved.</analysis>

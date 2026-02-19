@@ -110,9 +110,9 @@ ADSPOWER_API_PORT=50325
 - `/app/frontend/src/pages/AuthPage.js` - Login/Register page
 
 ## URLs
-- **Public Dashboard**: https://profile-reports-sync.preview.emergentagent.com
+- **Public Dashboard**: https://bot-reporter.preview.emergentagent.com
 - **Local Dashboard**: http://localhost:9090 (when running locally)
-- **Cloud API**: https://profile-reports-sync.preview.emergentagent.com/api
+- **Cloud API**: https://bot-reporter.preview.emergentagent.com/api
 
 ## Next Steps (Post-Deployment)
 

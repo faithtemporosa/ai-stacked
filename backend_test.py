@@ -11,7 +11,7 @@ from datetime import datetime
 from urllib.parse import quote
 
 class AdsPowerAPITester:
-    def __init__(self, base_url="https://profile-reports-sync.preview.emergentagent.com"):
+    def __init__(self, base_url="https://bot-reporter.preview.emergentagent.com"):
         self.base_url = base_url
         self.api_base = f"{base_url}/api"
         self.tests_run = 0
