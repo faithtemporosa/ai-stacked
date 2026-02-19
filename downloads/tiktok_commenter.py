@@ -2748,6 +2748,7 @@ def api_dm_export():
 @app.route('/api/post/status')
 def api_post_status():
     pending_count = len([p for p in post_queue if p.get("status") == "pending"])
+    scheduled_count = len([p for p in post_queue if p.get("status") == "pending" and p.get("scheduled_at")])
     return jsonify({
         "running": post_status["running"],
         "current_profile": post_status["current_profile"],
@@ -2755,6 +2756,7 @@ def api_post_status():
         "total": post_status["total"],
         "posts_made": post_status["posts_made"],
         "queue_pending": pending_count,
+        "scheduled_count": scheduled_count,
         "queue": post_queue[-50:],
         "history": post_status["history"][-50:],
         "logs": post_status["logs"][-100:]
