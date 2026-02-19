@@ -1627,6 +1627,97 @@ DASHBOARD_HTML = """
             </div>
         </div>
         
+        <!-- DM TAB -->
+        <div id="tab-dm" style="display:none">
+            <div class="grid">
+                <div class="card">
+                    <div class="card-title"><span>💬 DM Settings</span></div>
+                    <div class="settings">
+                        <div class="setting-row">
+                            <label>Target Mode:</label>
+                            <select id="dm-mode" onchange="dmModeChange()">
+                                <option value="specific">Specific Users</option>
+                                <option value="hashtag">From Hashtag</option>
+                                <option value="commenters">Video Commenters</option>
+                                <option value="followers">Account Followers</option>
+                            </select>
+                        </div>
+                        <div id="dm-specific" class="setting-row">
+                            <label>Usernames:</label>
+                            <textarea id="dm-users" placeholder="user1, user2, user3..." style="width:100%;height:60px;background:#27272a;border:1px solid #3f3f46;color:white;border-radius:6px;padding:8px;"></textarea>
+                        </div>
+                        <div id="dm-hashtag" class="setting-row" style="display:none">
+                            <label>Hashtag:</label>
+                            <input type="text" id="dm-tag" placeholder="#fitness" style="width:150px;">
+                        </div>
+                        <div id="dm-video" class="setting-row" style="display:none">
+                            <label>Video URL:</label>
+                            <input type="text" id="dm-video-url" placeholder="https://tiktok.com/..." style="width:250px;">
+                        </div>
+                        <div id="dm-account" class="setting-row" style="display:none">
+                            <label>Account:</label>
+                            <input type="text" id="dm-acc" placeholder="@username" style="width:150px;">
+                        </div>
+                        <div class="setting-row">
+                            <label>DMs per profile:</label>
+                            <input type="number" id="dm-max" value="50" style="width:80px;">
+                        </div>
+                        <div class="setting-row">
+                            <label>Min delay (s):</label>
+                            <input type="number" id="dm-mind" value="60" style="width:80px;">
+                        </div>
+                        <div class="setting-row">
+                            <label>Max delay (s):</label>
+                            <input type="number" id="dm-maxd" value="120" style="width:80px;">
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary" onclick="saveDmTargets()" style="margin-top:10px;">💾 Save Targets</button>
+                </div>
+                <div class="card">
+                    <div class="card-title"><span>📝 Messages</span></div>
+                    <div class="settings">
+                        <div style="margin-bottom:12px;">
+                            <label style="font-size:13px;color:#a1a1aa;">Default Message:</label>
+                            <textarea id="dm-default-msg" style="width:100%;height:80px;background:#27272a;border:1px solid #3f3f46;color:white;border-radius:6px;padding:8px;margin-top:4px;">Hey! Check out bumpconnect.xyz for amazing creator tools!</textarea>
+                        </div>
+                        <div style="border-top:1px solid #3f3f46;padding-top:12px;">
+                            <div style="font-size:13px;color:#a1a1aa;margin-bottom:8px;">Custom Groups (different message per group):</div>
+                            <div id="dm-groups"></div>
+                            <button class="btn btn-secondary" onclick="addDmGroup()" style="margin-top:8px;">+ Add Group</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card" style="margin-top:20px;">
+                <div class="card-title"><span>DM Status</span></div>
+                <div class="stats">
+                    <div class="stat"><div class="stat-value" id="dm-sent">0</div><div class="stat-label">DMs Sent</div></div>
+                    <div class="stat"><div class="stat-value" id="dm-queue">0</div><div class="stat-label">In Queue</div></div>
+                </div>
+                <div class="progress"><div class="progress-fill" id="dm-prog" style="width:0%"></div></div>
+                <p class="center" style="color:#71717a" id="dm-st">Ready</p>
+                <div class="center" style="margin-top:20px;">
+                    <button class="btn btn-success" id="dm-startb" onclick="startDm()">▶ Start DM</button>
+                    <button class="btn btn-danger" id="dm-stopb" onclick="stopDm()" style="display:none">⏹ Stop</button>
+                </div>
+            </div>
+            <div class="card" style="margin-top:20px;">
+                <div class="card-title"><span>DM Log</span><button class="btn btn-secondary" style="padding:4px 8px" onclick="clrDmLog()">Clear</button></div>
+                <div class="logs" id="dm-logs">Ready...</div>
+            </div>
+            <div class="card" style="margin-top:20px;">
+                <div class="card-title"><span>DM History</span>
+                    <div>
+                        <button class="btn btn-primary" onclick="expDmCSV()" style="padding:4px 12px">📥 Export</button>
+                        <button class="btn btn-danger" onclick="clrDmHistory()" style="padding:4px 12px">🗑️ Clear</button>
+                    </div>
+                </div>
+                <div style="max-height:200px;overflow:auto">
+                    <table class="report-table"><thead><tr><th>Time</th><th>Profile</th><th>Username</th><th>Message</th><th>Status</th></tr></thead><tbody id="dm-rb"></tbody></table>
+                </div>
+            </div>
+        </div>
+        
         <div id="tab-report" style="display:none">
             <div class="card">
                 <div class="card-title"><span>📊 All Comments History (All Time)</span><span id="rc" style="color:#71717a">0 total</span></div>
