@@ -3655,6 +3655,106 @@ def api_dm_export():
     }
 
 # =============================================================================
+# REPLY MANAGEMENT API ROUTES
+# =============================================================================
+
+@app.route('/api/replies/status')
+def api_replies_status():
+    return jsonify({
+        "checking": reply_status["checking"],
+        "last_check": reply_status["last_check"],
+        "pending": reply_status["pending_replies"],
+        "drafts": reply_status["draft_replies"],
+        "approved": reply_status["approved_replies"],
+        "sent": reply_status["sent_replies"][-50:],
+        "logs": reply_status["logs"][-100:]
+    })
+
+@app.route('/api/replies/check', methods=['POST'])
+def api_replies_check():
+    if start_check_replies():
+        return jsonify({"ok": True, "message": "Started checking for replies"})
+    return jsonify({"ok": False, "message": "Already checking or error"})
+
+@app.route('/api/replies/approve', methods=['POST'])
+def api_replies_approve():
+    data = request.json or {}
+    index = data.get("index", 0)
+    edited_message = data.get("message", "")
+    
+    if index < len(reply_status["draft_replies"]):
+        draft = reply_status["draft_replies"][index]
+        if edited_message:
+            draft["draft_message"] = edited_message
+        draft["status"] = "approved"
+        draft["approved_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        reply_status["approved_replies"].append(draft)
+        reply_status["draft_replies"].pop(index)
+        save_replies_data()
+        return jsonify({"ok": True})
+    return jsonify({"ok": False, "message": "Invalid index"})
+
+@app.route('/api/replies/reject', methods=['POST'])
+def api_replies_reject():
+    data = request.json or {}
+    index = data.get("index", 0)
+    
+    if index < len(reply_status["draft_replies"]):
+        reply_status["draft_replies"].pop(index)
+        save_replies_data()
+        return jsonify({"ok": True})
+    return jsonify({"ok": False, "message": "Invalid index"})
+
+@app.route('/api/replies/unapprove', methods=['POST'])
+def api_replies_unapprove():
+    data = request.json or {}
+    index = data.get("index", 0)
+    
+    if index < len(reply_status["approved_replies"]):
+        approved = reply_status["approved_replies"][index]
+        approved["status"] = "draft"
+        reply_status["draft_replies"].append(approved)
+        reply_status["approved_replies"].pop(index)
+        save_replies_data()
+        return jsonify({"ok": True})
+    return jsonify({"ok": False, "message": "Invalid index"})
+
+@app.route('/api/replies/regenerate', methods=['POST'])
+def api_replies_regenerate():
+    data = request.json or {}
+    index = data.get("index", 0)
+    
+    if index < len(reply_status["draft_replies"]):
+        draft = reply_status["draft_replies"][index]
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            new_draft = loop.run_until_complete(draft_ai_reply(
+                draft["username"],
+                draft["their_message"],
+                draft.get("original_outreach", "")
+            ))
+            loop.close()
+            draft["draft_message"] = new_draft
+            draft["regenerated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            save_replies_data()
+            return jsonify({"ok": True, "draft": new_draft})
+        except Exception as e:
+            return jsonify({"ok": False, "message": str(e)})
+    return jsonify({"ok": False, "message": "Invalid index"})
+
+@app.route('/api/replies/send', methods=['POST'])
+def api_replies_send():
+    if start_send_approved():
+        return jsonify({"ok": True, "message": "Started sending approved replies"})
+    return jsonify({"ok": False, "message": "Already sending or no replies to send"})
+
+@app.route('/api/replies/clear-logs', methods=['POST'])
+def api_replies_clear_logs():
+    reply_status["logs"] = []
+    return jsonify({"ok": True})
+
+# =============================================================================
 # REPOST API ROUTES
 # =============================================================================
 
