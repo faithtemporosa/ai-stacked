@@ -2143,6 +2143,77 @@ DASHBOARD_HTML = """
             </div>
         </div>
         
+        <!-- POST TAB -->
+        <div id="tab-post" style="display:none">
+            <div class="grid">
+                <div class="card">
+                    <div class="card-title"><span>📤 Add Video to Queue</span></div>
+                    <div class="settings">
+                        <div class="setting-row">
+                            <label>Video Path:</label>
+                            <input type="text" id="post-video" placeholder="/path/to/video.mp4" style="width:100%;box-sizing:border-box;">
+                        </div>
+                        <div style="font-size:11px;color:#71717a;margin-bottom:10px;">Full path to video file on your Mac (e.g., /Users/you/Downloads/video.mp4)</div>
+                        <div class="setting-row">
+                            <label>Caption:</label>
+                            <textarea id="post-caption" placeholder="Your video caption..." style="width:100%;height:60px;background:#27272a;border:1px solid #3f3f46;color:white;border-radius:6px;padding:8px;"></textarea>
+                        </div>
+                        <div class="setting-row">
+                            <label>Hashtags:</label>
+                            <input type="text" id="post-hashtags" placeholder="#fyp #viral #trending" style="width:100%;box-sizing:border-box;">
+                        </div>
+                        <div class="setting-row">
+                            <label>Target Profiles:</label>
+                            <input type="text" id="post-profiles" placeholder="Leave empty for first profile, or: profile1, profile2" style="width:100%;box-sizing:border-box;">
+                        </div>
+                        <div style="font-size:11px;color:#71717a;margin-bottom:10px;">Leave empty to post from first available profile</div>
+                        <button class="btn btn-success" onclick="addToPostQueue()" style="margin-top:8px;">+ Add to Queue</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title"><span>Post Settings</span></div>
+                    <div class="settings">
+                        <div class="setting-row"><label>Min delay (s):</label><input type="number" id="post-mind" value="300" style="width:80px;"></div>
+                        <div class="setting-row"><label>Max delay (s):</label><input type="number" id="post-maxd" value="600" style="width:80px;"></div>
+                        <div style="font-size:11px;color:#71717a;margin-top:6px;">Delay between posts (5-10 min recommended to avoid detection)</div>
+                    </div>
+                    <div class="stats" style="margin-top:16px;">
+                        <div class="stat"><div class="stat-value" id="post-queued">0</div><div class="stat-label">In Queue</div></div>
+                        <div class="stat"><div class="stat-value" id="post-done">0</div><div class="stat-label">Posts Made</div></div>
+                    </div>
+                    <div class="progress"><div class="progress-fill" id="post-prog" style="width:0%"></div></div>
+                    <p class="center" style="color:#71717a" id="post-st">Ready</p>
+                    <div class="center" style="margin-top:20px;">
+                        <button class="btn btn-success" id="post-startb" onclick="startPost()">▶ Start Posting</button>
+                        <button class="btn btn-danger" id="post-stopb" onclick="stopPost()" style="display:none">⏹ Stop</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card" style="margin-top:20px;">
+                <div class="card-title"><span>Post Queue</span>
+                    <button class="btn btn-danger" onclick="clearPostQueue()" style="padding:4px 12px;">Clear Queue</button>
+                </div>
+                <div style="max-height:200px;overflow:auto">
+                    <table class="report-table"><thead><tr><th>Video</th><th>Caption</th><th>Profiles</th><th>Status</th><th>Action</th></tr></thead><tbody id="post-queue-tb"></tbody></table>
+                </div>
+            </div>
+            <div class="card" style="margin-top:20px;">
+                <div class="card-title"><span>Post Log</span><button class="btn btn-secondary" style="padding:4px 8px" onclick="clrPostLog()">Clear</button></div>
+                <div class="logs" id="post-logs">Ready - Add videos to queue and click Start...</div>
+            </div>
+            <div class="card" style="margin-top:20px;">
+                <div class="card-title"><span>Post History</span>
+                    <div>
+                        <button class="btn btn-primary" onclick="expPostCSV()" style="padding:4px 12px">📥 Export</button>
+                        <button class="btn btn-danger" onclick="clrPostHistory()" style="padding:4px 12px">Clear</button>
+                    </div>
+                </div>
+                <div style="max-height:200px;overflow:auto">
+                    <table class="report-table"><thead><tr><th>Time</th><th>Profile</th><th>Video</th><th>Caption</th><th>Status</th></tr></thead><tbody id="post-hist-tb"></tbody></table>
+                </div>
+            </div>
+        </div>
+        
         <div id="tab-report" style="display:none">
             <div class="card">
                 <div class="card-title"><span>📊 All Comments History (All Time)</span><span id="rc" style="color:#71717a">0 total</span></div>
