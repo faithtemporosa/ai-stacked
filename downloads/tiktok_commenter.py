@@ -2816,7 +2816,7 @@ def api_dm_settings():
     dm_settings.update({
         "enabled": data.get("enabled", dm_settings["enabled"]),
         "max_dms_per_profile": min(100, data.get("max_dms_per_profile", dm_settings["max_dms_per_profile"])),
-        "max_dms_total": min(500, data.get("max_dms_total", dm_settings.get("max_dms_total", 250))),
+        "max_dms_total": min(5000, data.get("max_dms_total", dm_settings.get("max_dms_total", 2500))),
         "parallel_browsers": data.get("parallel_browsers", dm_settings.get("parallel_browsers", 2)),
         "min_delay": data.get("min_delay", dm_settings["min_delay"]),
         "max_delay": data.get("max_delay", dm_settings["max_delay"]),
