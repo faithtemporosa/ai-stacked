@@ -2426,6 +2426,7 @@ DASHBOARD_HTML = """
                 const d=await r.json();
                 postStatus=d;
                 document.getElementById('post-queued').textContent=d.queue_pending||0;
+                document.getElementById('post-scheduled').textContent=d.scheduled_count||0;
                 document.getElementById('post-done').textContent=d.posts_made||0;
                 document.getElementById('post-prog').style.width=(d.total?(d.progress/d.total*100):0)+'%';
                 document.getElementById('post-st').textContent=d.running?'Posting: '+d.current_profile+' ('+d.progress+'/'+d.total+')':'Ready';
