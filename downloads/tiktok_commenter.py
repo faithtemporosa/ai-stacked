@@ -114,14 +114,29 @@ dm_status = {
 
 # Post Settings
 post_settings = {
-    "enabled": False,
-    "min_delay": 300,  # 5 minutes between posts
-    "max_delay": 600,  # 10 minutes between posts
-    "posts_per_profile": 1,  # Posts per profile per run
+    "enabled": True,
+    "min_delay": 300,  # 5 min between reposts
+    "max_delay": 600,  # 10 min between reposts
+    "max_reposts_per_day": 2,  # Max 2 reposts per profile per day
 }
 
-# Post Queue - videos to be posted
-post_queue = []  # [{"video_path": "", "caption": "", "hashtags": [], "profiles": [], "status": "pending", "scheduled_at": ""}]
+# Repost schedule: Monday = brand content, Tue-Sun = social media content
+BRAND_SEARCH_TERMS = [
+    "bumpconnect", "bump connect", "kollabsy", "bumpsyndicate", "bump syndicate",
+    "bumpconnect.xyz", "kollabsy.xyz", "bumpsyndicate.xyz",
+]
+SOCIAL_MEDIA_SEARCH_TERMS = [
+    "social media tips", "content creator tips", "social media marketing",
+    "grow your following", "social media strategy", "creator economy",
+    "tiktok growth", "influencer tips", "content creation", "digital marketing",
+]
+
+# Post Queue - auto-populated by scheduler
+post_queue = []
+
+# Daily repost tracking per profile: {"profile_name": {"2026-02-19": 2}}
+REPOST_TRACKER_FILE = "tiktok_repost_tracker.json"
+repost_tracker = {}
 
 post_status = {
     "running": False,
@@ -130,11 +145,13 @@ post_status = {
     "total": 0,
     "posts_made": 0,
     "logs": [],
-    "history": []
+    "history": [],
+    "last_run": None,
+    "next_run": None,
 }
 
 # Scheduler state
-scheduler_running = True  # Background scheduler thread flag
+scheduler_running = True
 
 automation_status = {
     "running": False,
