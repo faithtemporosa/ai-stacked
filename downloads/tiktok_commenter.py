@@ -2102,82 +2102,58 @@ DASHBOARD_HTML = """
             </div>
         </div>
         
-        <!-- POST TAB -->
+        <!-- POST TAB (Auto Repost Scheduler) -->
         <div id="tab-post" style="display:none">
             <div class="grid">
                 <div class="card">
-                    <div class="card-title"><span>📤 Add Video to Queue</span></div>
+                    <div class="card-title"><span>📤 Auto Repost Scheduler</span></div>
+                    <div style="background:#1e1b4b;border:1px solid #4c1d95;border-radius:8px;padding:12px;margin-bottom:12px;">
+                        <div style="font-size:13px;color:#c4b5fd;font-weight:bold;margin-bottom:6px;">Schedule Rules</div>
+                        <div style="font-size:12px;color:#a1a1aa;line-height:1.8;">
+                            <b style="color:#4ade80;">Monday:</b> Repost Bump Connect / Kollabsy / Bump Syndicate content<br>
+                            <b style="color:#60a5fa;">Tue - Sun:</b> Repost social media / content creator content<br>
+                            <b style="color:#fbbf24;">Limit:</b> Max <span id="post-limit-display">2</span> reposts per profile per day<br>
+                            <b style="color:#c4b5fd;">Auto-run:</b> Scheduler starts daily at 9 AM when enabled
+                        </div>
+                    </div>
                     <div class="settings">
-                        <div class="setting-row">
-                            <label>Video Path:</label>
-                            <input type="text" id="post-video" placeholder="/path/to/video.mp4" style="width:100%;box-sizing:border-box;">
-                        </div>
-                        <div style="font-size:11px;color:#71717a;margin-bottom:10px;">Full path to video file on your Mac (e.g., /Users/you/Downloads/video.mp4)</div>
-                        <div class="setting-row">
-                            <label>Caption:</label>
-                            <textarea id="post-caption" placeholder="Your video caption..." style="width:100%;height:60px;background:#27272a;border:1px solid #3f3f46;color:white;border-radius:6px;padding:8px;"></textarea>
-                        </div>
-                        <div class="setting-row">
-                            <label>Hashtags:</label>
-                            <input type="text" id="post-hashtags" placeholder="#fyp #viral #trending" style="width:100%;box-sizing:border-box;">
-                        </div>
-                        <div class="setting-row">
-                            <label>Target Profiles:</label>
-                            <input type="text" id="post-profiles" placeholder="Leave empty for first profile, or: profile1, profile2" style="width:100%;box-sizing:border-box;">
-                        </div>
-                        <div style="font-size:11px;color:#71717a;margin-bottom:10px;">Leave empty to post from first available profile</div>
-                        <div class="setting-row">
-                            <label>Schedule (optional):</label>
-                            <input type="datetime-local" id="post-schedule" style="width:100%;box-sizing:border-box;padding:8px;background:#27272a;border:1px solid #3f3f46;color:white;border-radius:6px;">
-                        </div>
-                        <div style="font-size:11px;color:#71717a;margin-bottom:10px;">Leave empty for manual start, or pick date/time for auto-posting</div>
-                        <div style="display:flex;gap:8px;">
-                            <button class="btn btn-success" onclick="addToPostQueue()" style="margin-top:8px;">+ Add to Queue</button>
-                            <button class="btn btn-primary" onclick="addToPostQueue(true)" style="margin-top:8px;">⏰ Schedule</button>
-                        </div>
+                        <div class="setting-row"><label>Max reposts/day:</label><input type="number" id="post-maxday" value="2" min="1" max="5" style="width:60px;"></div>
+                        <div class="setting-row"><label>Min delay (s):</label><input type="number" id="post-mind" value="300" style="width:80px;"></div>
+                        <div class="setting-row"><label>Max delay (s):</label><input type="number" id="post-maxd" value="600" style="width:80px;"></div>
+                        <div style="font-size:11px;color:#71717a;margin-top:6px;">5-10 min delay between reposts to avoid detection</div>
+                    </div>
+                    <div class="center" style="margin-top:12px;">
+                        <button class="btn btn-success" onclick="applyRepostSettings()">Save Settings</button>
                     </div>
                 </div>
                 <div class="card">
-                    <div class="card-title"><span>Post Settings</span></div>
-                    <div class="settings">
-                        <div class="setting-row"><label>Min delay (s):</label><input type="number" id="post-mind" value="300" style="width:80px;"></div>
-                        <div class="setting-row"><label>Max delay (s):</label><input type="number" id="post-maxd" value="600" style="width:80px;"></div>
-                        <div style="font-size:11px;color:#71717a;margin-top:6px;">Delay between posts (5-10 min recommended to avoid detection)</div>
+                    <div class="card-title"><span>Status</span></div>
+                    <div class="stats" style="margin-top:8px;">
+                        <div class="stat"><div class="stat-value" id="post-done">0</div><div class="stat-label">Reposts Made</div></div>
+                        <div class="stat"><div class="stat-value" id="post-today-count">0</div><div class="stat-label">Today</div></div>
                     </div>
-                    <div class="stats" style="margin-top:16px;">
-                        <div class="stat"><div class="stat-value" id="post-queued">0</div><div class="stat-label">In Queue</div></div>
-                        <div class="stat"><div class="stat-value" id="post-scheduled">0</div><div class="stat-label">Scheduled</div></div>
-                        <div class="stat"><div class="stat-value" id="post-done">0</div><div class="stat-label">Posts Made</div></div>
-                    </div>
-                    <div class="progress"><div class="progress-fill" id="post-prog" style="width:0%"></div></div>
-                    <p class="center" style="color:#71717a" id="post-st">Ready</p>
-                    <div class="center" style="margin-top:20px;">
-                        <button class="btn btn-success" id="post-startb" onclick="startPost()">▶ Start Posting</button>
+                    <div class="progress" style="margin-top:12px;"><div class="progress-fill" id="post-prog" style="width:0%"></div></div>
+                    <p class="center" style="color:#71717a;font-size:12px;" id="post-st">Ready</p>
+                    <p class="center" style="color:#52525b;font-size:11px;" id="post-next">Scheduler: Waiting...</p>
+                    <div class="center" style="margin-top:16px;">
+                        <button class="btn btn-success" id="post-startb" onclick="startPost()">▶ Start Repost Run</button>
                         <button class="btn btn-danger" id="post-stopb" onclick="stopPost()" style="display:none">⏹ Stop</button>
                     </div>
                 </div>
             </div>
             <div class="card" style="margin-top:20px;">
-                <div class="card-title"><span>Post Queue</span>
-                    <button class="btn btn-danger" onclick="clearPostQueue()" style="padding:4px 12px;">Clear Queue</button>
-                </div>
-                <div style="max-height:200px;overflow:auto">
-                    <table class="report-table"><thead><tr><th>Video</th><th>Caption</th><th>Schedule/Profiles</th><th>Status</th><th>Action</th></tr></thead><tbody id="post-queue-tb"></tbody></table>
-                </div>
+                <div class="card-title"><span>Repost Log</span><button class="btn btn-secondary" style="padding:4px 8px" onclick="clrPostLog()">Clear</button></div>
+                <div class="logs" id="post-logs">Ready - Click Start or wait for auto-scheduler...</div>
             </div>
             <div class="card" style="margin-top:20px;">
-                <div class="card-title"><span>Post Log</span><button class="btn btn-secondary" style="padding:4px 8px" onclick="clrPostLog()">Clear</button></div>
-                <div class="logs" id="post-logs">Ready - Add videos to queue and click Start...</div>
-            </div>
-            <div class="card" style="margin-top:20px;">
-                <div class="card-title"><span>Post History</span>
+                <div class="card-title"><span>Repost History</span>
                     <div>
                         <button class="btn btn-primary" onclick="expPostCSV()" style="padding:4px 12px">📥 Export</button>
                         <button class="btn btn-danger" onclick="clrPostHistory()" style="padding:4px 12px">Clear</button>
                     </div>
                 </div>
                 <div style="max-height:200px;overflow:auto">
-                    <table class="report-table"><thead><tr><th>Time</th><th>Profile</th><th>Video</th><th>Caption</th><th>Status</th></tr></thead><tbody id="post-hist-tb"></tbody></table>
+                    <table class="report-table"><thead><tr><th>Time</th><th>Profile</th><th>Video</th><th>Content Type</th><th>Status</th></tr></thead><tbody id="post-hist-tb"></tbody></table>
                 </div>
             </div>
         </div>
