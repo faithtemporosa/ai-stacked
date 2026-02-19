@@ -69,6 +69,8 @@ commented_videos = set()
 REPORT_FILE = "tiktok_comments_history.json"
 DM_REPORT_FILE = "tiktok_dm_history.json"
 DM_TARGETS_FILE = "tiktok_dm_targets.json"
+POST_QUEUE_FILE = "tiktok_post_queue.json"
+POST_HISTORY_FILE = "tiktok_post_history.json"
 
 settings = {
     "min_delay": MIN_DELAY_BETWEEN_COMMENTS,
@@ -108,6 +110,27 @@ dm_status = {
     "logs": [],
     "report": [],
     "sent_to": set()  # Track who we've already DMed
+}
+
+# Post Settings
+post_settings = {
+    "enabled": False,
+    "min_delay": 300,  # 5 minutes between posts
+    "max_delay": 600,  # 10 minutes between posts
+    "posts_per_profile": 1,  # Posts per profile per run
+}
+
+# Post Queue - videos to be posted
+post_queue = []  # [{"video_path": "", "caption": "", "hashtags": [], "profiles": [], "status": "pending"}]
+
+post_status = {
+    "running": False,
+    "current_profile": None,
+    "progress": 0,
+    "total": 0,
+    "posts_made": 0,
+    "logs": [],
+    "history": []
 }
 
 automation_status = {
