@@ -1077,6 +1077,12 @@ def run_post_automation(ws_endpoint, profile_name, posts_to_make):
                         "status": "posted"
                     })
                     
+                    # Sync post to cloud
+                    try:
+                        threading.Thread(target=sync_post_to_cloud, args=(post_status["history"][-1],), daemon=True).start()
+                    except:
+                        pass
+                    
                     # Mark as posted in queue
                     post["status"] = "posted"
                     post["posted_by"] = profile_name
