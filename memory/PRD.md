@@ -1,148 +1,118 @@
 # TikTok Auto Commenter - Product Requirements Document
 
 ## Original Problem Statement
-User wants to automate posting promotional comments on TikTok using their 25 AdsPower browser profiles. The tool should be a local script controlled by a web dashboard, with a **public-facing website where teammates can view the reports in real-time**.
+User wants to automate posting promotional comments on TikTok using 25 AdsPower browser profiles. Local script controlled by web dashboard, with public-facing website for team reports in real-time.
 
 ## Solution Architecture
-
-### Components
-1. **Local Script (`tiktok_commenter.py`)** - Runs on user's Mac, connects to AdsPower, automates TikTok commenting, DMs, and posting via Playwright
-2. **Cloud Backend (Supabase)** - Stores comment reports, DM history, post history, and live logs for real-time dashboard
-3. **Public Dashboard (React)** - Real-time viewing of all activity across profiles, directly querying Supabase
-4. **FastAPI Backend** - Handles user authentication (register/login/teams) with MongoDB
-
-### Key Features
-- **Profile Management**: Sync 25 profiles from AdsPower local API
-- **Parallel Execution**: Run 2 browsers simultaneously for stability
-- **Hashtag Targeting**: Target For You page or specific hashtags
-- **Brand Promotion**: Rotate between Bump Connect, Kollabsy, and Bump Syndicate
-- **Real-time Reporting**: Comments sync to Supabase, dashboard updates via Realtime subscriptions
-- **Team Access**: Authenticated dashboard with team invites
-- **Live Logs**: Stream automation logs to cloud dashboard
-- **DM Automation**: Send direct messages to TikTok users, synced to Supabase
-- **Post to TikTok**: Upload and post videos with queue management
-- **Post Scheduler**: Schedule posts for future dates/times with auto-execution
+1. **Local Script** (`tiktok_commenter.py`) - Flask + Playwright automation for comments, DMs, and posting
+2. **Cloud Data** (Supabase) - PostgreSQL + Realtime for comment_reports, dm_reports, post_reports, live_logs
+3. **Public Dashboard** (React) - Tabbed SaaS dashboard with analytics, billing, email notifications
+4. **API Backend** (FastAPI + MongoDB) - Auth, billing (Stripe), email notifications (Resend)
 
 ## Technical Stack
-- **Local Script**: Python + Flask + Playwright + Supabase client
-- **Cloud Data**: Supabase (PostgreSQL + Realtime)
-- **Backend**: FastAPI + MongoDB (auth only)
-- **Frontend**: React + TailwindCSS + Supabase JS client + Lucide icons
-- **Build Tools**: Craco (for path aliases)
-- **Deployment**: Emergent Platform (preview), Vercel/Render (production)
+- Local: Python/Flask/Playwright/Supabase client
+- Cloud: Supabase (PostgreSQL + Realtime)
+- Backend: FastAPI + MongoDB + Stripe + Resend
+- Frontend: React + TailwindCSS + Recharts + Lucide + Supabase JS
+- Build: Craco (path aliases)
 
-## Completed Work
+## Completed Features
 
-### Phase 1: Public Real-time Dashboard (Feb 2026)
-- [x] Supabase integration for comment_reports, live_logs, dm_reports, post_reports tables
-- [x] React dashboard with stats, filters, auto-refresh
-- [x] Import Data feature for bulk uploads
-- [x] Live logs streaming via Supabase Realtime
-- [x] Export CSV functionality
-- [x] Date range filters (Today, This Week, This Month, All Time, Custom)
-- [x] Today's Comments by Brand breakdown
+### Core Automation (Local Script)
+- [x] Auto commenting on TikTok (25 profiles, 2 parallel, 100 videos each)
+- [x] DM automation (specific users, hashtag users, followers)
+- [x] Post to TikTok (video upload, queue management)
+- [x] Post Scheduler (datetime picker, background thread, auto-trigger)
+- [x] Supabase cloud sync for comments, DMs, posts
+- [x] 3 brands: Bump Connect, Kollabsy, Bump Syndicate
 
-### Phase 2: Automation Stability (Feb 2026)
-- [x] Added retry logic (3 attempts per video)
-- [x] Updated Playwright selectors for TikTok 2025
-- [x] Improved error handling with consecutive failure tracking
-- [x] Better login detection and skip logic
+### Public Dashboard
+- [x] 6 tabs: Comments, DMs, Posts, Analytics, Live Logs, Settings
+- [x] 6 stat cards with real-time Supabase data
+- [x] Date range filters, brand breakdown
+- [x] Import/Export functionality
+- [x] Supabase Realtime subscriptions for instant updates
 
-### Phase 3: SaaS Features (Feb 2026)
-- [x] JWT-based authentication (register/login)
-- [x] User accounts with team support
-- [x] Team creation and member invites
-- [x] Role-based access (admin, member, viewer)
+### Analytics
+- [x] Comments Trend (14 days) area chart
+- [x] Best Posting Hours bar chart
+- [x] Brand Distribution pie chart
+- [x] Profile Performance horizontal bar chart
+- [x] Key metrics (Total, Active Profiles, Avg/Profile, Peak Hour)
+- [x] Paginated Supabase queries for accurate data
 
-### Phase 4: DM Feature (Feb 2026)
-- [x] DM automation for specific users, hashtag users, video commenters, followers
-- [x] DM tab in local dashboard with settings, message groups, history
-- [x] Export DM history to CSV
-- [x] Supabase cloud sync for DM reports
-- [x] DM tab in public dashboard with stats and history table
+### SaaS Features
+- [x] Landing page with hero, features, stats, capabilities
+- [x] Pricing page (Free $0, Pro $29, Enterprise $99)
+- [x] Stripe checkout integration (test key configured)
+- [x] Payment status polling on frontend
+- [x] JWT authentication (register/login/teams)
+- [x] Payment transactions collection in MongoDB
 
-### Phase 5: Post to TikTok Feature + Scheduler (Feb 2026)
-- [x] Video upload automation via TikTok web interface
-- [x] Post queue management (add, remove, clear)
-- [x] Post tab in local dashboard with settings, queue display, logs, history
-- [x] Flask API routes for all post operations
-- [x] Export post history to CSV
-- [x] Supabase cloud sync for post reports
-- [x] Post tab in public dashboard with stats and history table
-- [x] **Post Scheduler** - schedule posts with date/time picker, auto-triggers when due
-- [x] Background scheduler thread (checks every 30 seconds)
+### Email Notifications
+- [x] Subscribe/unsubscribe endpoints
+- [x] Daily summary email template (dark theme HTML)
+- [x] Send summary to all subscribers
+- [x] Resend integration (needs user API key for production)
+- [x] Settings UI for managing subscribers
 
-### Phase 6: Public Dashboard Enhancement (Feb 2026)
-- [x] Tabbed navigation: Comments, DMs, Posts, Live Logs
-- [x] 6 stat cards: This Month, This Week, Today, All Comments, DMs Sent, Posts Made
-- [x] DMs tab with stats (Total, Today, Unique Recipients, Profiles Used) and history table
-- [x] Posts tab with stats (Total, Today, Profiles Used, Scheduler indicator) and history table
-- [x] Live Logs tab with color-coded messages and Running/Idle status
-- [x] Supabase Realtime subscriptions for all tables (comments, DMs, posts, logs)
-
-### Testing (Feb 2026)
-- [x] Iteration 3: 100% pass (25/25 backend, all frontend)
-- [x] Iteration 4: 100% pass (25/25 backend, all frontend) - includes new tabs/features
-
-## Supabase Tables
-| Table | Columns |
-|-------|---------|
-| `comment_reports` | timestamp, profile, video_url, video_id, comment, sheet |
-| `live_logs` | id (singleton), logs (JSON), status (JSON), updated_at |
-| `dm_reports` | timestamp, profile, username, message, status |
-| `post_reports` | timestamp, profile, video, caption, status |
+### Testing
+- [x] Iteration 3: 100% (25/25 backend, all frontend)
+- [x] Iteration 4: 100% (25/25 backend, all frontend)
+- [x] Iteration 5: 100% (22/22 backend, all frontend) + bug fix
 
 ## API Endpoints
 
-### Local (`tiktok_commenter.py` on `localhost:9090`)
+### Billing
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `GET /` | GET | Dashboard UI |
-| `POST /api/sync-profiles` | POST | Fetch AdsPower profiles |
-| `POST /api/start` | POST | Start commenting |
-| `POST /api/stop` | POST | Stop commenting |
-| `GET /api/status` | GET | Comment status |
-| `POST /api/dm/start` | POST | Start DMs |
-| `POST /api/dm/stop` | POST | Stop DMs |
-| `GET /api/dm/status` | GET | DM status |
-| `GET /api/post/status` | GET | Post status/queue/history/scheduled |
-| `POST /api/post/queue` | POST | Add video (with optional scheduled_at) |
-| `POST /api/post/queue/remove` | POST | Remove queue item |
-| `POST /api/post/queue/clear` | POST | Clear pending queue |
-| `POST /api/post/settings` | POST | Update post delay settings |
-| `POST /api/post/start` | POST | Start posting |
-| `POST /api/post/stop` | POST | Stop posting |
-| `GET /api/post/export` | GET | Export post CSV |
+| `GET /api/billing/plans` | GET | Get subscription plans |
+| `POST /api/billing/checkout` | POST | Create Stripe checkout session |
+| `GET /api/billing/status/{id}` | GET | Check payment status |
+| `POST /api/webhook/stripe` | POST | Stripe webhook handler |
 
-### Cloud (FastAPI `backend/server.py`)
+### Email Notifications
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `POST /api/auth/register` | POST | User registration |
-| `POST /api/auth/login` | POST | User login, returns JWT |
-| `GET /api/auth/me` | GET | Current user profile |
-| `POST /api/reports` | POST | Receive comment report |
-| `GET /api/reports` | GET | Get reports with filters |
-| `GET /api/reports/stats` | GET | Dashboard statistics |
+| `POST /api/notifications/subscribe` | POST | Subscribe email |
+| `POST /api/notifications/unsubscribe` | POST | Unsubscribe email |
+| `GET /api/notifications/subscriptions` | GET | List subscribers |
+| `POST /api/notifications/send-summary` | POST | Send daily summary |
+
+## Supabase Tables
+| Table | Purpose |
+|-------|---------|
+| `comment_reports` | Comment history from automation |
+| `dm_reports` | DM history from automation |
+| `post_reports` | Post history from automation |
+| `live_logs` | Real-time automation logs |
+
+## MongoDB Collections
+| Collection | Purpose |
+|------------|---------|
+| `users` | User accounts |
+| `teams` | Team management |
+| `payment_transactions` | Stripe payments |
+| `email_subscriptions` | Notification subscribers |
+| `reports` | Legacy comment reports |
 
 ## Files Reference
-- `/app/downloads/tiktok_commenter.py` - Local automation script (2800+ lines)
-- `/app/backend/server.py` - Cloud API server with auth
-- `/app/frontend/src/App.js` - Public dashboard with tabs
-- `/app/frontend/src/lib/supabase.js` - Supabase client config
-- `/app/frontend/src/contexts/AuthContext.js` - Auth context provider
-- `/app/frontend/craco.config.js` - Craco config with @/ alias
+- `/app/downloads/tiktok_commenter.py` - Local automation script
+- `/app/backend/server.py` - FastAPI backend
+- `/app/frontend/src/App.js` - Main app (Dashboard + Landing)
+- `/app/frontend/src/pages/Analytics.js` - Analytics charts
+- `/app/frontend/src/pages/Landing.js` - Landing + pricing page
+- `/app/frontend/src/pages/Settings.js` - Email + billing settings
+
+## Configuration Notes
+- **Email**: User needs to add their Resend API key (`RESEND_API_KEY=re_...`) to `backend/.env` for production email sending
+- **Stripe**: Test key `sk_test_emergent` is pre-configured
+- **Supabase**: `dm_reports` and `post_reports` tables need to be created in Supabase when first syncing
 
 ## Next Steps
-
-### P0 - Immediate
-- User testing of Post to TikTok + Scheduler feature on local Mac with AdsPower
-
-### P1 - Short Term
-- Fix Vercel deployment for production hosting (configs ready, needs user to deploy)
-- Improve TikTok automation stability (selectors may need updating)
-
-### P2 - Future
-- Productize into Hybrid SaaS (user accounts, billing, downloadable local agent)
-- Email notifications for daily summaries
-- Multi-team support with isolated data
-- Analytics dashboard (success rates, best times to post, engagement metrics)
+- P0: User testing of local bot features (Post Scheduler, DM sync, Post sync)
+- P1: Deploy to Vercel/Render for production
+- P1: Add Resend API key for production email
+- P2: Advanced analytics (engagement rates, ROI tracking)
+- P2: Multi-team data isolation
+- P2: Downloadable local agent installer for Mac
