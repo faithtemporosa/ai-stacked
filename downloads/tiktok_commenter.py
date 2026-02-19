@@ -825,13 +825,36 @@ def collect_followers(page, account, limit=100):
         dm_log(f"✗ Error collecting followers: {e}")
         return []
 
-def run_dm_automation(ws_endpoint, profile_name):
-    """Run DM automation for a single profile"""
+def run_dm_automation_for_profile(ws_endpoint, profile_name):
+    """Run DM automation for a single profile - NEW VERSION with brand search"""
     if not HAS_PLAYWRIGHT:
         dm_log("✗ Playwright not installed!")
-        return False
+        return 0
     
     dms_sent = 0
+    max_dms = dm_settings.get("max_dms_per_profile", 100)
+    
+    # Check how many DMs this profile has already sent today
+    dms_already_sent = get_dms_today(profile_name)
+    remaining_for_profile = max_dms - dms_already_sent
+    
+    if remaining_for_profile <= 0:
+        dm_log(f"  ⚠ Profile already at daily limit ({max_dms} DMs)")
+        return 0
+    
+    # Check total daily limit
+    total_today = get_total_dms_today()
+    max_total = dm_settings.get("max_dms_total", 250)
+    remaining_total = max_total - total_today
+    
+    if remaining_total <= 0:
+        dm_log(f"  ⚠ Total daily limit reached ({max_total} DMs)")
+        return 0
+    
+    # Take the minimum of profile limit and remaining total
+    to_send = min(remaining_for_profile, remaining_total)
+    dm_log(f"  📊 Profile limit: {remaining_for_profile} | Total remaining: {remaining_total} | Will send: {to_send}")
+    
     target_users = []
     
     try:
@@ -841,9 +864,12 @@ def run_dm_automation(ws_endpoint, profile_name):
             page = context.pages[0] if context.pages else context.new_page()
             
             # Collect target users based on mode
-            mode = dm_settings.get("target_mode", "specific")
+            mode = dm_settings.get("target_mode", "brand_search")
             
-            if mode == "specific":
+            if mode == "brand_search":
+                # NEW: Scrape brands from TikTok search
+                target_users = scrape_brands_for_dm(page, num_brands=to_send + 20)
+            elif mode == "specific":
                 target_users = [u for u in dm_targets.get("specific_users", []) if u not in dm_status["sent_to"]]
             elif mode == "hashtag":
                 hashtag = dm_settings.get("target_hashtag", "").strip().replace("#", "")
@@ -861,19 +887,30 @@ def run_dm_automation(ws_endpoint, profile_name):
                     target_users = collect_followers(page, account, 200)
                     target_users = [u for u in target_users if u not in dm_status["sent_to"]]
             
+            # Filter already contacted
+            target_users = [u for u in target_users if u not in dm_status["sent_to"]]
+            
             if not target_users:
-                dm_log(f"⚠ No new users to DM")
+                dm_log(f"  ⚠ No new users to DM")
                 browser.close()
-                return False
+                return 0
             
-            max_dms = dm_settings.get("max_dms_per_profile", 50)
-            target_users = target_users[:max_dms]
-            
-            dm_log(f"→ Will DM {len(target_users)} users")
+            # Limit to what we can send
+            target_users = target_users[:to_send]
+            dm_log(f"  → Will DM {len(target_users)} brands/users")
             
             for i, username in enumerate(target_users):
                 if not dm_status["running"]:
-                    dm_log(f"⏹ Stopped by user")
+                    dm_log(f"  ⏹ Stopped by user")
+                    break
+                
+                # Check limits again during loop
+                if get_total_dms_today() >= max_total:
+                    dm_log(f"  ⚠ Total daily limit reached")
+                    break
+                
+                if get_dms_today(profile_name) >= max_dms:
+                    dm_log(f"  ⚠ Profile daily limit reached")
                     break
                 
                 dm_status["progress"] = i + 1
@@ -885,14 +922,17 @@ def run_dm_automation(ws_endpoint, profile_name):
                 if success:
                     dms_sent += 1
                     dm_status["dms_sent"] += 1
+                    dm_status["dms_sent_today"] += 1
                     dm_status["sent_to"].add(username)
+                    record_dm(profile_name)
                     
                     dm_status["report"].append({
                         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "profile": profile_name,
                         "username": username,
                         "message": message[:50] + "..." if len(message) > 50 else message,
-                        "status": "sent"
+                        "status": "sent",
+                        "search_mode": mode
                     })
                     
                     # Sync DM to cloud
@@ -905,19 +945,20 @@ def run_dm_automation(ws_endpoint, profile_name):
                     
                     # Wait between DMs
                     delay = random.randint(dm_settings["min_delay"], dm_settings["max_delay"])
-                    dm_log(f"  ⏳ Waiting {delay}s...")
+                    dm_log(f"  ⏳ Waiting {delay}s... (Sent: {dms_sent}/{to_send})")
                     for _ in range(delay):
                         if not dm_status["running"]:
                             break
                         time.sleep(1)
             
             browser.close()
-            dm_log(f"✓ Sent {dms_sent} DMs from {profile_name}")
-            return dms_sent > 0
+            dm_log(f"✓ Profile {profile_name}: Sent {dms_sent} DMs")
+            return dms_sent
             
     except Exception as e:
         dm_log(f"✗ Error: {e}")
-        return False
+        traceback.print_exc()
+        return dms_sent
 
 def process_dm_profile(profile_id, profile_name):
     """Process a single profile for DM automation"""
@@ -927,24 +968,33 @@ def process_dm_profile(profile_id, profile_name):
     browser_data = open_browser(profile_id)
     if not browser_data:
         dm_log(f"  ✗ Failed to open browser")
-        return False
+        return 0
     
     ws_endpoint = browser_data.get("ws", {}).get("puppeteer")
     if not ws_endpoint:
         dm_log(f"  ✗ No WebSocket endpoint")
         close_browser(profile_id)
-        return False
+        return 0
     
     time.sleep(3)
-    success = run_dm_automation(ws_endpoint, profile_name)
+    dms_sent = run_dm_automation_for_profile(ws_endpoint, profile_name)
     
     close_browser(profile_id)
     dm_log(f"  → Browser closed")
     
-    return success
+    return dms_sent
 
 def start_dm_automation():
-    """Start the DM automation process"""
+    """Start the DM automation process - NEW VERSION
+    
+    Features:
+    - Searches TikTok for brands/businesses
+    - Max 100 DMs per profile per day
+    - Max 250 DMs total per day
+    - 2 profiles open at a time (parallel)
+    - Starts from lowest numbered profile
+    - Continues until all profiles hit daily quota
+    """
     if dm_status["running"]:
         return False
     
@@ -952,12 +1002,30 @@ def start_dm_automation():
     dm_status["logs"] = []
     dm_status["progress"] = 0
     dm_status["total"] = 0
+    dm_status["profiles_completed"] = []
+    dm_status["dms_sent_today"] = get_total_dms_today()
     
     dm_log("═" * 50)
-    dm_log("Starting DM Automation...")
+    dm_log("🚀 Starting Brand DM Outreach")
+    dm_log("═" * 50)
+    dm_log(f"📊 Settings:")
+    dm_log(f"   Max per profile: {dm_settings['max_dms_per_profile']} DMs")
+    dm_log(f"   Max total/day: {dm_settings['max_dms_total']} DMs")
+    dm_log(f"   Parallel browsers: {dm_settings['parallel_browsers']}")
+    dm_log(f"   Mode: {dm_settings['target_mode']}")
+    dm_log(f"   Already sent today: {dm_status['dms_sent_today']} DMs")
     dm_log("═" * 50)
     
     if not profiles:
+        dm_log("✗ No profiles loaded! Click Sync first.")
+        dm_status["running"] = False
+        return False
+    
+    # Check if we've hit total daily limit
+    if dm_status["dms_sent_today"] >= dm_settings["max_dms_total"]:
+        dm_log(f"✗ Already at total daily limit ({dm_settings['max_dms_total']} DMs)")
+        dm_status["running"] = False
+        return False
         dm_log("✗ No profiles loaded!")
         dm_status["running"] = False
         return False
