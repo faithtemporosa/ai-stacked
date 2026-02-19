@@ -716,6 +716,8 @@ def stop_dm_automation():
     dm_status["running"] = False
     dm_log("⏹ Stopping DM automation...")
 
+def fetch_adspower_profiles():
+    """Fetch profiles from AdsPower API"""
     global profiles
     try:
         response = requests.get(f"{ADSPOWER_API}/api/v1/user/list?page_size=100", timeout=5)
