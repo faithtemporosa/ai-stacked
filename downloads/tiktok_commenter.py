@@ -2782,4 +2782,5 @@ if __name__ == "__main__":
     print("=" * 50)
     load_report_history()  # Load past runs
     load_dm_data()  # Load DM data
+    load_post_data()  # Load post queue and history
     app.run(host="0.0.0.0", port=9090, debug=False)
