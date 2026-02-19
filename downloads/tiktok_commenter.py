@@ -739,6 +739,405 @@ def stop_dm_automation():
     dm_status["running"] = False
     dm_log("⏹ Stopping DM automation...")
 
+# =============================================================================
+# POST FUNCTIONS - Upload/Create TikTok posts
+# =============================================================================
+
+def post_log(message):
+    """Log for post operations"""
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    log_entry = f"[{timestamp}] [POST] {message}"
+    post_status["logs"].append(log_entry)
+    print(log_entry)
+    if len(post_status["logs"]) > 200:
+        post_status["logs"] = post_status["logs"][-200:]
+
+def load_post_data():
+    """Load post queue and history"""
+    global post_queue
+    try:
+        with open(POST_QUEUE_FILE, 'r') as f:
+            data = json.load(f)
+            post_queue = data.get("queue", [])
+            print(f"✓ Loaded {len(post_queue)} posts in queue")
+    except FileNotFoundError:
+        pass
+    except Exception as e:
+        print(f"Error loading post queue: {e}")
+    
+    try:
+        with open(POST_HISTORY_FILE, 'r') as f:
+            data = json.load(f)
+            post_status["history"] = data.get("history", [])
+            post_status["posts_made"] = len(post_status["history"])
+    except FileNotFoundError:
+        pass
+    except Exception as e:
+        print(f"Error loading post history: {e}")
+
+def save_post_data():
+    """Save post queue and history"""
+    try:
+        with open(POST_QUEUE_FILE, 'w') as f:
+            json.dump({"queue": post_queue}, f, indent=2)
+    except Exception as e:
+        print(f"Error saving post queue: {e}")
+    
+    try:
+        with open(POST_HISTORY_FILE, 'w') as f:
+            json.dump({
+                "history": post_status["history"],
+                "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }, f, indent=2)
+    except Exception as e:
+        print(f"Error saving post history: {e}")
+
+def upload_tiktok_video(page, video_path, caption, hashtags=None):
+    """Upload a video to TikTok using the web interface"""
+    try:
+        post_log(f"  → Navigating to TikTok upload...")
+        page.goto("https://www.tiktok.com/upload", wait_until="domcontentloaded", timeout=60000)
+        time.sleep(5)
+        
+        # Check if logged in
+        if "login" in page.url.lower():
+            post_log(f"  ⚠ Not logged in - cannot upload")
+            return False, "not_logged_in"
+        
+        # Wait for upload page to load
+        post_log(f"  → Looking for upload button...")
+        
+        # Try to find and click the upload area or file input
+        upload_result = page.evaluate('''() => {
+            // Look for iframe first (TikTok uses iframe for upload)
+            const iframe = document.querySelector('iframe[src*="upload"]');
+            if (iframe) {
+                return {success: false, method: 'iframe-detected', msg: 'Upload is in iframe'};
+            }
+            
+            // Look for file input
+            const fileInput = document.querySelector('input[type="file"]');
+            if (fileInput) {
+                return {success: true, method: 'file-input', inputId: fileInput.id || 'found'};
+            }
+            
+            // Look for upload button/area
+            const uploadSelectors = [
+                '[class*="upload-btn"]',
+                '[class*="Upload"]',
+                'button[aria-label*="upload" i]',
+                '[data-e2e="upload-button"]'
+            ];
+            
+            for (let sel of uploadSelectors) {
+                const el = document.querySelector(sel);
+                if (el) {
+                    el.click();
+                    return {success: true, method: sel};
+                }
+            }
+            
+            return {success: false, msg: 'No upload element found'};
+        }''')
+        
+        if not upload_result.get('success'):
+            post_log(f"  ⚠ Could not find upload element: {upload_result.get('msg')}")
+            return False, "no_upload_element"
+        
+        post_log(f"  ✓ Found upload ({upload_result.get('method')})")
+        
+        # Upload the file
+        post_log(f"  → Uploading video: {video_path}")
+        file_input = page.locator('input[type="file"]').first
+        file_input.set_input_files(video_path)
+        
+        # Wait for upload to complete
+        post_log(f"  → Waiting for upload to process...")
+        time.sleep(10)  # Initial wait for upload
+        
+        # Wait for processing (can take a while)
+        for i in range(60):  # Wait up to 5 minutes
+            progress = page.evaluate('''() => {
+                // Check for various progress indicators
+                const progressBar = document.querySelector('[class*="progress"]');
+                const processingText = document.body.innerText.toLowerCase();
+                
+                if (processingText.includes('100%') || processingText.includes('ready to post')) {
+                    return {done: true, percent: 100};
+                }
+                if (processingText.includes('processing') || processingText.includes('uploading')) {
+                    const match = processingText.match(/(\d+)%/);
+                    return {done: false, percent: match ? parseInt(match[1]) : 50};
+                }
+                return {done: true, percent: 100};
+            }''')
+            
+            if progress.get('done'):
+                break
+            
+            if i % 10 == 0:
+                post_log(f"  → Processing: {progress.get('percent', '?')}%")
+            time.sleep(5)
+        
+        post_log(f"  ✓ Video uploaded")
+        
+        # Add caption
+        post_log(f"  → Adding caption...")
+        caption_result = page.evaluate('''(caption) => {
+            const selectors = [
+                '[data-e2e="caption-input"]',
+                '[class*="DivCaptionInput"]',
+                '[class*="caption"] [contenteditable="true"]',
+                'div[contenteditable="true"][data-text="true"]',
+                'div[contenteditable="true"]'
+            ];
+            
+            for (let sel of selectors) {
+                const el = document.querySelector(sel);
+                if (el && el.offsetParent) {
+                    el.click();
+                    el.focus();
+                    // Clear existing content
+                    el.innerHTML = '';
+                    return {success: true, method: sel};
+                }
+            }
+            return {success: false};
+        }''', caption)
+        
+        if caption_result.get('success'):
+            # Build full caption with hashtags
+            full_caption = caption
+            if hashtags:
+                tags = " ".join([f"#{tag.replace('#', '').strip()}" for tag in hashtags if tag.strip()])
+                full_caption = f"{caption} {tags}"
+            
+            page.keyboard.type(full_caption, delay=30)
+            post_log(f"  ✓ Caption added")
+        else:
+            post_log(f"  ⚠ Could not find caption input")
+        
+        time.sleep(2)
+        
+        # Click post button
+        post_log(f"  → Posting...")
+        post_result = page.evaluate('''() => {
+            const selectors = [
+                '[data-e2e="post-button"]',
+                'button[class*="Post"]',
+                'button[class*="Submit"]',
+                'button:contains("Post")'
+            ];
+            
+            for (let sel of selectors) {
+                const el = document.querySelector(sel);
+                if (el && el.offsetParent && !el.disabled) {
+                    el.click();
+                    return {success: true, method: sel};
+                }
+            }
+            
+            // Try finding by text
+            const buttons = document.querySelectorAll('button');
+            for (let btn of buttons) {
+                if (btn.textContent.toLowerCase().includes('post') && !btn.disabled) {
+                    btn.click();
+                    return {success: true, method: 'text-search'};
+                }
+            }
+            
+            return {success: false};
+        }''')
+        
+        if post_result.get('success'):
+            post_log(f"  ✓ Post button clicked ({post_result.get('method')})")
+            time.sleep(5)
+            
+            # Check if post was successful
+            success_check = page.evaluate('''() => {
+                const text = document.body.innerText.toLowerCase();
+                return text.includes('uploaded') || text.includes('posted') || text.includes('success');
+            }''')
+            
+            if success_check:
+                post_log(f"  ✓ Post successful!")
+                return True, "success"
+            else:
+                post_log(f"  ⚠ Post status unclear")
+                return True, "uncertain"
+        else:
+            post_log(f"  ⚠ Could not find post button")
+            return False, "no_post_button"
+        
+    except Exception as e:
+        post_log(f"  ✗ Error uploading: {str(e)[:100]}")
+        return False, str(e)
+
+def run_post_automation(ws_endpoint, profile_name, posts_to_make):
+    """Run posting automation for a single profile"""
+    if not HAS_PLAYWRIGHT:
+        post_log("✗ Playwright not installed!")
+        return False
+    
+    posts_made = 0
+    
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.connect_over_cdp(ws_endpoint)
+            context = browser.contexts[0] if browser.contexts else browser.new_context()
+            page = context.pages[0] if context.pages else context.new_page()
+            
+            for post in posts_to_make:
+                if not post_status["running"]:
+                    post_log(f"⏹ Stopped by user")
+                    break
+                
+                video_path = post.get("video_path", "")
+                caption = post.get("caption", "")
+                hashtags = post.get("hashtags", [])
+                
+                if not video_path:
+                    post_log(f"  ⚠ No video path specified")
+                    continue
+                
+                post_log(f"  → Posting video: {video_path[:50]}...")
+                success, result = upload_tiktok_video(page, video_path, caption, hashtags)
+                
+                if success:
+                    posts_made += 1
+                    post_status["posts_made"] += 1
+                    
+                    post_status["history"].append({
+                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "profile": profile_name,
+                        "video": video_path,
+                        "caption": caption[:100],
+                        "status": "posted"
+                    })
+                    
+                    # Mark as posted in queue
+                    post["status"] = "posted"
+                    post["posted_by"] = profile_name
+                    post["posted_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    
+                    save_post_data()
+                    
+                    # Wait between posts
+                    delay = random.randint(post_settings["min_delay"], post_settings["max_delay"])
+                    post_log(f"  ⏳ Waiting {delay}s before next post...")
+                    for _ in range(delay):
+                        if not post_status["running"]:
+                            break
+                        time.sleep(1)
+                else:
+                    post["status"] = f"failed: {result}"
+                    save_post_data()
+            
+            browser.close()
+            post_log(f"✓ Made {posts_made} posts from {profile_name}")
+            return posts_made > 0
+            
+    except Exception as e:
+        post_log(f"✗ Error: {e}")
+        return False
+
+def process_post_profile(profile_id, profile_name, posts_for_profile):
+    """Process a single profile for posting"""
+    post_log(f"▶ Starting posts: {profile_name}")
+    post_status["current_profile"] = profile_name
+    
+    browser_data = open_browser(profile_id)
+    if not browser_data:
+        post_log(f"  ✗ Failed to open browser")
+        return False
+    
+    ws_endpoint = browser_data.get("ws", {}).get("puppeteer")
+    if not ws_endpoint:
+        post_log(f"  ✗ No WebSocket endpoint")
+        close_browser(profile_id)
+        return False
+    
+    time.sleep(3)
+    success = run_post_automation(ws_endpoint, profile_name, posts_for_profile)
+    
+    close_browser(profile_id)
+    post_log(f"  → Browser closed")
+    
+    return success
+
+def start_post_automation():
+    """Start the posting automation process"""
+    if post_status["running"]:
+        return False
+    
+    pending_posts = [p for p in post_queue if p.get("status") == "pending"]
+    if not pending_posts:
+        post_log("⚠ No pending posts in queue!")
+        return False
+    
+    post_status["running"] = True
+    post_status["logs"] = []
+    post_status["progress"] = 0
+    post_status["total"] = 0
+    
+    post_log("═" * 50)
+    post_log("Starting Post Automation...")
+    post_log(f"Posts in queue: {len(pending_posts)}")
+    post_log("═" * 50)
+    
+    if not profiles:
+        post_log("✗ No profiles loaded!")
+        post_status["running"] = False
+        return False
+    
+    def run():
+        try:
+            # Group posts by profile
+            for i, post in enumerate(pending_posts):
+                if not post_status["running"]:
+                    break
+                
+                # Get target profiles for this post (or use all)
+                target_profiles = post.get("profiles", [])
+                if not target_profiles:
+                    # Post to first available profile
+                    target_profiles = [profiles[0]["name"]] if profiles else []
+                
+                for profile in profiles:
+                    if not post_status["running"]:
+                        break
+                    
+                    profile_name = profile.get("name", profile.get("user_id"))
+                    
+                    # Check if this profile should post this video
+                    if target_profiles and profile_name not in target_profiles:
+                        continue
+                    
+                    profile_id = profile.get("user_id")
+                    
+                    post_status["progress"] = i + 1
+                    post_status["total"] = len(pending_posts)
+                    
+                    process_post_profile(profile_id, profile_name, [post])
+                    break  # Only post once per video
+                    
+        except Exception as e:
+            post_log(f"✗ Fatal error: {e}")
+        finally:
+            post_status["running"] = False
+            post_status["current_profile"] = None
+            post_log("═" * 50)
+            post_log(f"Post Automation Complete. Total posts: {post_status['posts_made']}")
+            post_log("═" * 50)
+    
+    threading.Thread(target=run, daemon=True).start()
+    return True
+
+def stop_post_automation():
+    """Stop the posting automation"""
+    post_status["running"] = False
+    post_log("⏹ Stopping post automation...")
+
 def fetch_adspower_profiles():
     """Fetch profiles from AdsPower API"""
     global profiles
