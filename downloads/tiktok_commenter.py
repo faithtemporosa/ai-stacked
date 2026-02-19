@@ -165,6 +165,496 @@ dm_status = {
     "sent_to": set()  # Track who we've already DMed
 }
 
+# =============================================================================
+# AI REPLY SYSTEM - Track replies and draft AI responses
+# =============================================================================
+EMERGENT_LLM_KEY = "sk-emergent-6Ba3bF3C70c6aE08f9"
+REPLIES_FILE = "tiktok_dm_replies.json"
+
+# Reply tracking
+reply_status = {
+    "checking": False,
+    "last_check": None,
+    "pending_replies": [],  # Messages received that need response
+    "draft_replies": [],    # AI-drafted replies pending approval
+    "approved_replies": [], # Approved replies ready to send
+    "sent_replies": [],     # Sent reply history
+    "logs": [],
+}
+
+AI_SYSTEM_PROMPT = """You are a professional but friendly social media marketing assistant for Bump Syndicate (bumpsyndicate.xyz). 
+
+Your role is to draft reply messages to potential clients who responded to our outreach DMs about social media management services.
+
+Guidelines:
+- Be professional but warm and approachable
+- Keep replies concise (2-3 sentences max)
+- Show genuine interest in their business
+- Gently guide towards scheduling a call or visiting bumpsyndicate.xyz
+- Don't be pushy or salesy
+- Use emojis sparingly (1-2 max)
+- Address their specific questions or concerns if mentioned
+- Always maintain a helpful, consultative tone
+
+Examples of good replies:
+- "Thanks for getting back to us! 😊 We'd love to learn more about your brand. Would you be open to a quick 15-min call this week?"
+- "Great to hear from you! What's your biggest challenge with social media right now? We might have some quick wins for you."
+- "Appreciate the response! Feel free to check out some of our case studies at bumpsyndicate.xyz/results - happy to chat whenever works for you!"
+"""
+
+def reply_log(message):
+    """Log for reply operations"""
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    log_entry = f"[{timestamp}] [REPLY] {message}"
+    reply_status["logs"].append(log_entry)
+    print(log_entry)
+    if len(reply_status["logs"]) > 200:
+        reply_status["logs"] = reply_status["logs"][-200:]
+
+def load_replies_data():
+    """Load reply tracking data"""
+    global reply_status
+    try:
+        with open(REPLIES_FILE, 'r') as f:
+            data = json.load(f)
+            reply_status["pending_replies"] = data.get("pending_replies", [])
+            reply_status["draft_replies"] = data.get("draft_replies", [])
+            reply_status["approved_replies"] = data.get("approved_replies", [])
+            reply_status["sent_replies"] = data.get("sent_replies", [])
+            print(f"✓ Loaded {len(reply_status['pending_replies'])} pending, {len(reply_status['draft_replies'])} drafts, {len(reply_status['approved_replies'])} approved replies")
+    except FileNotFoundError:
+        pass
+    except Exception as e:
+        print(f"Error loading replies: {e}")
+
+def save_replies_data():
+    """Save reply tracking data"""
+    try:
+        with open(REPLIES_FILE, 'w') as f:
+            json.dump({
+                "pending_replies": reply_status["pending_replies"],
+                "draft_replies": reply_status["draft_replies"],
+                "approved_replies": reply_status["approved_replies"],
+                "sent_replies": reply_status["sent_replies"],
+                "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }, f, indent=2)
+    except Exception as e:
+        print(f"Error saving replies: {e}")
+
+async def draft_ai_reply(username, their_message, original_outreach):
+    """Use AI to draft a reply to a message"""
+    if not HAS_AI:
+        return f"Thanks for your response! We'd love to chat more about how we can help your brand grow. Check out bumpsyndicate.xyz!"
+    
+    try:
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"reply-{username}-{int(time.time())}",
+            system_message=AI_SYSTEM_PROMPT
+        ).with_model("openai", "gpt-5.2")
+        
+        user_message = UserMessage(
+            text=f"""Draft a reply to this message:
+
+Username: @{username}
+Their reply: "{their_message}"
+Our original outreach: "{original_outreach}"
+
+Keep it short (2-3 sentences), professional but friendly. Don't include any greeting like "Hi" since this is a DM reply."""
+        )
+        
+        response = await chat.send_message(user_message)
+        return response.strip()
+    except Exception as e:
+        reply_log(f"✗ AI error: {e}")
+        return f"Thanks for getting back! We'd love to learn more about your brand and how we can help. Feel free to check out bumpsyndicate.xyz 😊"
+
+def check_dm_replies_for_profile(page, profile_name):
+    """Check TikTok DM inbox for replies to our outreach"""
+    new_replies = []
+    reply_log(f"  📥 Checking inbox for {profile_name}...")
+    
+    try:
+        # Navigate to DM inbox
+        page.goto("https://www.tiktok.com/messages", wait_until="domcontentloaded", timeout=30000)
+        time.sleep(4)
+        
+        # Check if logged in
+        if "login" in page.url.lower():
+            reply_log(f"  ⚠ Not logged in")
+            return []
+        
+        # Get list of conversations with unread messages
+        conversations = page.evaluate('''() => {
+            const convos = [];
+            // Find conversation list items
+            const items = document.querySelectorAll('[class*="ConversationItem"], [class*="MessageListItem"], [data-e2e*="message"]');
+            
+            items.forEach(item => {
+                // Check for unread indicator
+                const hasUnread = item.querySelector('[class*="unread"], [class*="Unread"], [class*="badge"]') !== null;
+                const usernameEl = item.querySelector('[class*="Username"], [class*="name"], a[href*="/@"]');
+                const previewEl = item.querySelector('[class*="Preview"], [class*="lastMessage"], [class*="content"]');
+                
+                if (usernameEl) {
+                    let username = '';
+                    if (usernameEl.href && usernameEl.href.includes('/@')) {
+                        username = usernameEl.href.match(/@([a-zA-Z0-9_.]+)/)?.[1] || '';
+                    } else {
+                        username = usernameEl.textContent.replace('@', '').trim();
+                    }
+                    
+                    const preview = previewEl ? previewEl.textContent.trim() : '';
+                    
+                    if (username) {
+                        convos.push({
+                            username: username,
+                            preview: preview.substring(0, 100),
+                            hasUnread: hasUnread,
+                            element_index: Array.from(items).indexOf(item)
+                        });
+                    }
+                }
+            });
+            
+            return convos;
+        }''')
+        
+        reply_log(f"  Found {len(conversations)} conversations")
+        
+        # Filter to users we've previously DMed
+        sent_to = dm_status.get("sent_to", set())
+        for convo in conversations:
+            username = convo.get("username", "")
+            if username in sent_to or username in [r.get("username") for r in dm_status.get("report", [])]:
+                # This is a reply to our outreach!
+                # Check if we already have this reply
+                existing = [r for r in reply_status["pending_replies"] + reply_status["draft_replies"] + reply_status["sent_replies"] 
+                           if r.get("username") == username]
+                
+                if not existing:
+                    # Click to open conversation and get full message
+                    try:
+                        page.evaluate(f'''(index) => {{
+                            const items = document.querySelectorAll('[class*="ConversationItem"], [class*="MessageListItem"], [data-e2e*="message"]');
+                            if (items[index]) items[index].click();
+                        }}''', convo.get("element_index", 0))
+                        time.sleep(2)
+                        
+                        # Get the last message from them
+                        last_message = page.evaluate('''() => {
+                            const messages = document.querySelectorAll('[class*="MessageBubble"], [class*="messageContent"], [class*="TextMessage"]');
+                            // Get messages that are NOT from us (received messages)
+                            const received = [];
+                            messages.forEach(msg => {
+                                const isReceived = msg.closest('[class*="received"], [class*="Received"], [class*="left"]') !== null ||
+                                                   !msg.closest('[class*="sent"], [class*="Sent"], [class*="right"]');
+                                if (isReceived) {
+                                    received.push(msg.textContent.trim());
+                                }
+                            });
+                            return received.length > 0 ? received[received.length - 1] : '';
+                        }''')
+                        
+                        if last_message and len(last_message) > 0:
+                            # Find our original outreach message
+                            original = ""
+                            for r in dm_status.get("report", []):
+                                if r.get("username") == username:
+                                    original = r.get("message", "")
+                                    break
+                            
+                            new_reply = {
+                                "id": f"reply_{username}_{int(time.time())}",
+                                "username": username,
+                                "their_message": last_message[:500],
+                                "original_outreach": original,
+                                "profile": profile_name,
+                                "received_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                "status": "pending"
+                            }
+                            new_replies.append(new_reply)
+                            reply_status["pending_replies"].append(new_reply)
+                            reply_log(f"  ✓ New reply from @{username}: {last_message[:50]}...")
+                    except Exception as e:
+                        reply_log(f"  ⚠ Error reading conversation: {str(e)[:50]}")
+        
+        return new_replies
+        
+    except Exception as e:
+        reply_log(f"  ✗ Error checking inbox: {str(e)[:80]}")
+        return []
+
+def send_reply_to_user(page, username, reply_message):
+    """Send a reply message to a user"""
+    try:
+        reply_log(f"  → Sending reply to @{username}...")
+        
+        # Navigate to messages
+        page.goto("https://www.tiktok.com/messages", wait_until="domcontentloaded", timeout=30000)
+        time.sleep(3)
+        
+        # Find and click the conversation
+        clicked = page.evaluate(f'''(targetUser) => {{
+            const items = document.querySelectorAll('[class*="ConversationItem"], [class*="MessageListItem"], [data-e2e*="message"]');
+            for (let item of items) {{
+                const text = item.textContent.toLowerCase();
+                if (text.includes(targetUser.toLowerCase())) {{
+                    item.click();
+                    return true;
+                }}
+            }}
+            return false;
+        }}''', username)
+        
+        if not clicked:
+            reply_log(f"  ⚠ Could not find conversation with @{username}")
+            return False
+        
+        time.sleep(2)
+        
+        # Find message input
+        input_result = page.evaluate('''() => {
+            const selectors = [
+                '[data-e2e="message-input"]',
+                '[class*="DivInputContainer"] [contenteditable="true"]',
+                '[class*="MessageInput"] [contenteditable="true"]',
+                'div[contenteditable="true"]'
+            ];
+            
+            for (let sel of selectors) {
+                const el = document.querySelector(sel);
+                if (el && el.offsetParent) {
+                    el.click();
+                    el.focus();
+                    return {success: true};
+                }
+            }
+            return {success: false};
+        }''')
+        
+        if not input_result.get('success'):
+            reply_log(f"  ⚠ Could not find message input")
+            return False
+        
+        time.sleep(0.5)
+        
+        # Type the reply
+        page.keyboard.type(reply_message, delay=random.randint(20, 50))
+        time.sleep(1)
+        
+        # Send
+        page.keyboard.press("Enter")
+        time.sleep(2)
+        
+        reply_log(f"  ✓ Reply sent to @{username}")
+        return True
+        
+    except Exception as e:
+        reply_log(f"  ✗ Error sending reply: {str(e)[:80]}")
+        return False
+
+def run_check_replies(ws_endpoint, profile_name):
+    """Check DM inbox for replies using a browser"""
+    if not HAS_PLAYWRIGHT:
+        return []
+    
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.connect_over_cdp(ws_endpoint)
+            context = browser.contexts[0] if browser.contexts else browser.new_context()
+            page = context.pages[0] if context.pages else context.new_page()
+            
+            new_replies = check_dm_replies_for_profile(page, profile_name)
+            
+            browser.close()
+            return new_replies
+    except Exception as e:
+        reply_log(f"✗ Error: {e}")
+        return []
+
+def run_send_approved_replies(ws_endpoint, profile_name):
+    """Send all approved replies using a browser"""
+    if not HAS_PLAYWRIGHT:
+        return 0
+    
+    sent_count = 0
+    
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.connect_over_cdp(ws_endpoint)
+            context = browser.contexts[0] if browser.contexts else browser.new_context()
+            page = context.pages[0] if context.pages else context.new_page()
+            
+            # Filter approved replies for this profile
+            profile_replies = [r for r in reply_status["approved_replies"] if r.get("profile") == profile_name]
+            
+            for reply in profile_replies:
+                if send_reply_to_user(page, reply["username"], reply["draft_message"]):
+                    sent_count += 1
+                    reply["status"] = "sent"
+                    reply["sent_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    reply_status["sent_replies"].append(reply)
+                    reply_status["approved_replies"].remove(reply)
+                    save_replies_data()
+                    
+                    # Delay between sends
+                    time.sleep(random.randint(30, 60))
+            
+            browser.close()
+            return sent_count
+    except Exception as e:
+        reply_log(f"✗ Error: {e}")
+        return sent_count
+
+def start_check_replies():
+    """Start checking for replies across all profiles"""
+    if reply_status["checking"]:
+        return False
+    
+    reply_status["checking"] = True
+    reply_status["logs"] = []
+    
+    reply_log("═" * 50)
+    reply_log("📥 Checking for DM Replies...")
+    reply_log("═" * 50)
+    
+    if not profiles:
+        reply_log("✗ No profiles loaded!")
+        reply_status["checking"] = False
+        return False
+    
+    def run():
+        total_new = 0
+        try:
+            for profile in profiles[:5]:  # Check first 5 profiles
+                if not reply_status["checking"]:
+                    break
+                
+                profile_id = profile.get("user_id")
+                profile_name = profile.get("name", profile_id)
+                
+                reply_log(f"")
+                reply_log(f"▶ Checking: {profile_name}")
+                
+                browser_data = open_browser(profile_id)
+                if browser_data:
+                    ws_endpoint = browser_data.get("ws", {}).get("puppeteer")
+                    if ws_endpoint:
+                        time.sleep(3)
+                        new_replies = run_check_replies(ws_endpoint, profile_name)
+                        total_new += len(new_replies)
+                    close_browser(profile_id)
+                
+                time.sleep(5)  # Delay between profiles
+            
+            # Generate AI drafts for new replies
+            if total_new > 0:
+                reply_log("")
+                reply_log("🤖 Generating AI draft replies...")
+                
+                for pending in reply_status["pending_replies"]:
+                    if pending.get("status") == "pending":
+                        try:
+                            # Run async AI call
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            draft = loop.run_until_complete(draft_ai_reply(
+                                pending["username"],
+                                pending["their_message"],
+                                pending.get("original_outreach", "")
+                            ))
+                            loop.close()
+                            
+                            draft_entry = {
+                                **pending,
+                                "draft_message": draft,
+                                "status": "draft",
+                                "drafted_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            }
+                            reply_status["draft_replies"].append(draft_entry)
+                            reply_status["pending_replies"].remove(pending)
+                            
+                            reply_log(f"  ✓ Draft for @{pending['username']}: {draft[:50]}...")
+                            save_replies_data()
+                        except Exception as e:
+                            reply_log(f"  ✗ Draft error: {e}")
+            
+        except Exception as e:
+            reply_log(f"✗ Fatal error: {e}")
+        finally:
+            reply_status["checking"] = False
+            reply_status["last_check"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            save_replies_data()
+            reply_log("")
+            reply_log("═" * 50)
+            reply_log(f"✅ Check complete! Found {total_new} new replies")
+            reply_log(f"   Drafts ready for approval: {len(reply_status['draft_replies'])}")
+            reply_log("═" * 50)
+    
+    threading.Thread(target=run, daemon=True).start()
+    return True
+
+def start_send_approved():
+    """Send all approved replies"""
+    if reply_status["checking"]:
+        return False
+    
+    approved = reply_status["approved_replies"]
+    if not approved:
+        reply_log("⚠ No approved replies to send")
+        return False
+    
+    reply_status["checking"] = True
+    reply_log("═" * 50)
+    reply_log(f"📤 Sending {len(approved)} approved replies...")
+    reply_log("═" * 50)
+    
+    def run():
+        total_sent = 0
+        try:
+            # Group by profile
+            by_profile = {}
+            for reply in approved:
+                profile_name = reply.get("profile", "")
+                if profile_name not in by_profile:
+                    by_profile[profile_name] = []
+                by_profile[profile_name].append(reply)
+            
+            for profile_name, replies in by_profile.items():
+                # Find profile
+                profile = next((p for p in profiles if p.get("name") == profile_name), None)
+                if not profile:
+                    reply_log(f"⚠ Profile {profile_name} not found")
+                    continue
+                
+                reply_log(f"")
+                reply_log(f"▶ Sending from: {profile_name} ({len(replies)} replies)")
+                
+                browser_data = open_browser(profile.get("user_id"))
+                if browser_data:
+                    ws_endpoint = browser_data.get("ws", {}).get("puppeteer")
+                    if ws_endpoint:
+                        time.sleep(3)
+                        sent = run_send_approved_replies(ws_endpoint, profile_name)
+                        total_sent += sent
+                    close_browser(profile.get("user_id"))
+                
+                time.sleep(10)  # Delay between profiles
+            
+        except Exception as e:
+            reply_log(f"✗ Fatal error: {e}")
+        finally:
+            reply_status["checking"] = False
+            save_replies_data()
+            reply_log("")
+            reply_log("═" * 50)
+            reply_log(f"✅ Sent {total_sent} replies!")
+            reply_log("═" * 50)
+    
+    threading.Thread(target=run, daemon=True).start()
+    return True
+
 # Post Settings
 post_settings = {
     "enabled": True,
