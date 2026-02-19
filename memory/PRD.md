@@ -6,96 +6,110 @@ User wants to automate posting promotional comments on TikTok using their 25 Ads
 ## Solution Architecture
 
 ### Components
-1. **Local Script (`tiktok_commenter.py`)** - Runs on user's Mac, connects to AdsPower, automates TikTok commenting via Playwright
-2. **Cloud Backend (FastAPI)** - Receives and stores comment reports, handles user authentication
-3. **Public Dashboard (React)** - Real-time viewing of all comments posted across profiles with auth
+1. **Local Script (`tiktok_commenter.py`)** - Runs on user's Mac, connects to AdsPower, automates TikTok commenting, DMs, and posting via Playwright
+2. **Cloud Backend (Supabase)** - Stores comment reports and live logs for real-time dashboard
+3. **Public Dashboard (React)** - Real-time viewing of all comments posted across profiles, directly querying Supabase
+4. **FastAPI Backend** - Handles user authentication (register/login/teams) with MongoDB
 
 ### Key Features
 - **Profile Management**: Sync 25 profiles from AdsPower local API
 - **Parallel Execution**: Run 2 browsers simultaneously for stability
 - **Hashtag Targeting**: Target For You page or specific hashtags
 - **Brand Promotion**: Rotate between Bump Connect, Kollabsy, and Bump Syndicate
-- **Real-time Reporting**: Comments sync to cloud dashboard automatically
+- **Real-time Reporting**: Comments sync to Supabase, dashboard updates via Realtime subscriptions
 - **Team Access**: Authenticated dashboard with team invites
 - **Live Logs**: Stream automation logs to cloud dashboard
+- **DM Automation**: Send direct messages to TikTok users
+- **Post to TikTok**: Upload and post videos to TikTok profiles
 
 ## Technical Stack
-- **Local Script**: Python + Flask + Playwright
-- **Backend**: FastAPI + MongoDB + JWT Auth
-- **Frontend**: React + TailwindCSS
-- **Deployment**: Kubernetes (Emergent Platform)
-
-## API Endpoints
-
-### Authentication API
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/auth/register` | POST | Register new user with optional team |
-| `/api/auth/login` | POST | Login with email/password |
-| `/api/auth/me` | GET | Get current user profile |
-| `/api/teams/create` | POST | Create a new team |
-| `/api/teams/invite` | POST | Invite user to team |
-| `/api/teams/members` | GET | Get team members |
-
-### Reporting API
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/reports` | POST | Receive single comment report |
-| `/api/reports/bulk` | POST | Receive multiple reports |
-| `/api/reports` | GET | Get reports with filters |
-| `/api/reports/stats` | GET | Get dashboard statistics |
-| `/api/reports/import` | POST | Import from local JSON file |
-| `/api/logs` | POST | Receive live logs |
-| `/api/logs` | GET | Get live logs for dashboard |
+- **Local Script**: Python + Flask + Playwright + Supabase client
+- **Cloud Data**: Supabase (PostgreSQL + Realtime)
+- **Backend**: FastAPI + MongoDB (auth only)
+- **Frontend**: React + TailwindCSS + Supabase JS client
+- **Build Tools**: Craco (for path aliases)
+- **Deployment**: Emergent Platform (preview), Vercel/Render (production)
 
 ## Completed Work
 
-### Phase 1: Public Real-time Dashboard ✅ (Feb 2026)
-- [x] Cloud API for receiving/serving reports
+### Phase 1: Public Real-time Dashboard (Feb 2026)
+- [x] Supabase integration for comment_reports and live_logs tables
 - [x] React dashboard with stats, filters, auto-refresh
 - [x] Import Data feature for bulk uploads
-- [x] Live logs streaming from local script
+- [x] Live logs streaming via Supabase Realtime
+- [x] Export CSV functionality
+- [x] Date range filters (Today, This Week, This Month, All Time, Custom)
+- [x] Today's Comments by Brand breakdown
 
-### Phase 2: P1 - Automation Stability ✅ (Feb 2026)
+### Phase 2: Automation Stability (Feb 2026)
 - [x] Added retry logic (3 attempts per video)
 - [x] Updated Playwright selectors for TikTok 2025
 - [x] Improved error handling with consecutive failure tracking
 - [x] Better login detection and skip logic
-- [x] Modular helper functions (click_comment_button, find_and_focus_comment_input, etc.)
 
-### Phase 3: P2 - SaaS Features ✅ (Feb 2026)
+### Phase 3: SaaS Features (Feb 2026)
 - [x] JWT-based authentication (register/login)
 - [x] User accounts with team support
 - [x] Team creation and member invites
 - [x] Role-based access (admin, member, viewer)
-- [x] Sign In/Sign Out in dashboard header
 
-### Deployment Ready ✅
-- [x] All environment variables configured
-- [x] No hardcoded secrets or URLs
-- [x] CORS properly configured
-- [x] Database queries optimized
-- [x] Ready for Emergent production deployment
+### Phase 4: DM Feature (Feb 2026)
+- [x] DM automation for specific users, hashtag users, video commenters, followers
+- [x] DM tab with settings, message groups, history
+- [x] Export DM history to CSV
+
+### Phase 5: Post to TikTok Feature (Feb 2026)
+- [x] Video upload automation via TikTok web interface
+- [x] Post queue management (add, remove, clear)
+- [x] Post tab with settings, queue display, logs, history
+- [x] Flask API routes for all post operations
+- [x] Export post history to CSV
+
+### Testing (Feb 2026)
+- [x] 100% backend tests passed (25/25) - auth, reports, stats APIs
+- [x] 100% frontend tests passed - all UI features working
+
+## API Endpoints
+
+### Local (`tiktok_commenter.py` on `localhost:9090`)
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `GET /` | GET | Serves the dashboard UI |
+| `POST /api/sync-profiles` | POST | Fetches AdsPower profiles |
+| `POST /api/start` | POST | Starts comment automation |
+| `POST /api/stop` | POST | Stops automation |
+| `GET /api/status` | GET | Current automation status |
+| `POST /api/dm/start` | POST | Starts DM automation |
+| `POST /api/dm/stop` | POST | Stops DM automation |
+| `GET /api/dm/status` | GET | DM automation status |
+| `GET /api/post/status` | GET | Post automation status/queue/history |
+| `POST /api/post/queue` | POST | Add video to post queue |
+| `POST /api/post/start` | POST | Start posting automation |
+| `POST /api/post/stop` | POST | Stop posting automation |
+| `GET /api/post/export` | GET | Export post history CSV |
+
+### Cloud (FastAPI `backend/server.py`)
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `POST /api/auth/register` | POST | User registration |
+| `POST /api/auth/login` | POST | User login, returns JWT |
+| `GET /api/auth/me` | GET | Current user profile |
+| `POST /api/reports` | POST | Receive comment report |
+| `GET /api/reports` | GET | Get reports with filters |
+| `GET /api/reports/stats` | GET | Dashboard statistics |
 
 ## Configuration
 
-### Environment Variables (backend/.env)
-```
-MONGO_URL="mongodb://localhost:27017"
-DB_NAME="test_database"
-CORS_ORIGINS="*"
-JWT_SECRET="your-secure-jwt-secret"
-GOOGLE_SHEET_ID="..."
-REBOTOU_EXTENSION_ID="..."
-ADSPOWER_API_PORT=50325
-```
+### Supabase Tables
+- `comment_reports`: timestamp, profile, video_url, video_id, comment, sheet
+- `live_logs`: id (singleton), logs (JSON array), status (JSON), updated_at
 
 ### Default Settings
 - **Parallel Browsers**: 2 (fixed for stability)
 - **Videos per Profile**: 100
 - **Delay Between Comments**: 30-60 seconds
 - **Max Consecutive Failures**: 5
-- **Max Retries per Video**: 3
+- **Post Delay**: 300-600 seconds (5-10 min)
 
 ### Brands Promoted
 1. **Bump Connect** - bumpconnect.xyz
@@ -103,27 +117,23 @@ ADSPOWER_API_PORT=50325
 3. **Bump Syndicate** - bumpsyndicate.xyz
 
 ## Files Reference
-- `/app/downloads/tiktok_commenter.py` - Local automation script (updated with P1 stability fixes)
+- `/app/downloads/tiktok_commenter.py` - Local automation script (comments, DMs, posts)
 - `/app/backend/server.py` - Cloud API server with auth
-- `/app/frontend/src/App.js` - Public dashboard with auth
+- `/app/frontend/src/App.js` - Public dashboard using Supabase
+- `/app/frontend/src/lib/supabase.js` - Supabase client config
 - `/app/frontend/src/contexts/AuthContext.js` - Auth context provider
-- `/app/frontend/src/pages/AuthPage.js` - Login/Register page
 
-## URLs
-- **Public Dashboard**: https://bot-reporter.preview.emergentagent.com
-- **Local Dashboard**: http://localhost:9090 (when running locally)
-- **Cloud API**: https://bot-reporter.preview.emergentagent.com/api
+## Next Steps
 
-## Next Steps (Post-Deployment)
+### P0 - Immediate
+- User testing of Post to TikTok feature on local Mac with AdsPower
 
-### To Remove "Made with Emergent" Watermark
-1. Go to Emergent Platform dashboard
-2. Click "Deploy" button for your project
-3. This will deploy to production and remove the watermark
+### P1 - Short Term
+- Integrate DM and Post history views into the public dashboard
+- Fix Vercel deployment for production hosting (date-fns conflicts, Craco config)
 
-### Future Enhancements (P3+)
+### P2 - Future
+- Productize into Hybrid SaaS (user accounts, billing, downloadable local agent)
 - Stripe billing integration
-- Downloadable Mac installer for local agent
-- Usage analytics and reporting
 - Email notifications for daily summaries
 - Multi-team support with isolated data
