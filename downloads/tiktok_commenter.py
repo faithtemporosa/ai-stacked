@@ -2368,7 +2368,7 @@ DASHBOARD_HTML = """
                         </div>
                         <div class="setting-row">
                             <label>Max DMs/day (total):</label>
-                            <input type="number" id="dm-max-total" value="250" min="1" max="500" style="width:80px;">
+                            <input type="number" id="dm-max-total" value="2500" min="1" max="5000" style="width:80px;">
                         </div>
                         <div class="setting-row">
                             <label>Min delay (s):</label>
