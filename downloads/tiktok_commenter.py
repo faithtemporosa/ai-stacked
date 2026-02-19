@@ -2317,22 +2317,36 @@ DASHBOARD_HTML = """
             </div>
         </div>
         
-        <!-- DM TAB -->
+        <!-- DM TAB - Brand Outreach -->
         <div id="tab-dm" style="display:none">
             <div class="grid">
                 <div class="card">
-                    <div class="card-title"><span>💬 DM Settings</span></div>
+                    <div class="card-title"><span>🎯 Brand DM Outreach</span></div>
+                    <div style="background:#1e1b4b;border:1px solid #4c1d95;border-radius:8px;padding:12px;margin-bottom:12px;">
+                        <div style="font-size:13px;color:#c4b5fd;font-weight:bold;margin-bottom:6px;">How It Works</div>
+                        <div style="font-size:12px;color:#a1a1aa;line-height:1.8;">
+                            <b style="color:#4ade80;">1.</b> Searches TikTok for brands/businesses needing social media help<br>
+                            <b style="color:#60a5fa;">2.</b> Sends personalized DM about Bump Syndicate services<br>
+                            <b style="color:#fbbf24;">3.</b> Max <span id="dm-limit-profile">100</span> DMs per profile, <span id="dm-limit-total">250</span> total per day<br>
+                            <b style="color:#c4b5fd;">4.</b> Processes 2 profiles at a time, starting from lowest number
+                        </div>
+                    </div>
                     <div class="settings">
                         <div class="setting-row">
                             <label>Target Mode:</label>
                             <select id="dm-mode" onchange="dmModeChange()">
+                                <option value="brand_search">🔍 Auto Search Brands</option>
                                 <option value="specific">Specific Users</option>
                                 <option value="hashtag">From Hashtag</option>
                                 <option value="commenters">Video Commenters</option>
                                 <option value="followers">Account Followers</option>
                             </select>
                         </div>
-                        <div id="dm-specific" class="setting-row">
+                        <div id="dm-brand-info" style="background:#14532d;border:1px solid #16a34a;border-radius:6px;padding:10px;margin:8px 0;">
+                            <div style="font-size:12px;color:#4ade80;margin-bottom:4px;">🔍 Search Queries (random selection):</div>
+                            <div style="font-size:11px;color:#86efac;line-height:1.6;" id="dm-search-queries">small business owner, startup founder, entrepreneur life, ecommerce brand, clothing brand, beauty brand, fitness brand, restaurant owner, salon owner, real estate agent...</div>
+                        </div>
+                        <div id="dm-specific" class="setting-row" style="display:none">
                             <label>Usernames:</label>
                             <textarea id="dm-users" placeholder="user1, user2, user3..." style="width:100%;height:60px;background:#27272a;border:1px solid #3f3f46;color:white;border-radius:6px;padding:8px;"></textarea>
                         </div>
@@ -2349,51 +2363,53 @@ DASHBOARD_HTML = """
                             <input type="text" id="dm-acc" placeholder="@username" style="width:150px;">
                         </div>
                         <div class="setting-row">
-                            <label>DMs per profile:</label>
-                            <input type="number" id="dm-max" value="50" style="width:80px;">
+                            <label>Max DMs/profile:</label>
+                            <input type="number" id="dm-max" value="100" min="1" max="100" style="width:80px;">
+                        </div>
+                        <div class="setting-row">
+                            <label>Max DMs/day (total):</label>
+                            <input type="number" id="dm-max-total" value="250" min="1" max="500" style="width:80px;">
                         </div>
                         <div class="setting-row">
                             <label>Min delay (s):</label>
-                            <input type="number" id="dm-mind" value="60" style="width:80px;">
+                            <input type="number" id="dm-mind" value="45" style="width:80px;">
                         </div>
                         <div class="setting-row">
                             <label>Max delay (s):</label>
-                            <input type="number" id="dm-maxd" value="120" style="width:80px;">
+                            <input type="number" id="dm-maxd" value="90" style="width:80px;">
                         </div>
                     </div>
-                    <button class="btn btn-secondary" onclick="saveDmTargets()" style="margin-top:10px;">💾 Save Targets</button>
+                    <button class="btn btn-secondary" onclick="saveDmSettings()" style="margin-top:10px;">💾 Save Settings</button>
                 </div>
                 <div class="card">
-                    <div class="card-title"><span>📝 Messages</span></div>
+                    <div class="card-title"><span>📝 DM Message</span></div>
                     <div class="settings">
                         <div style="margin-bottom:12px;">
-                            <label style="font-size:13px;color:#a1a1aa;">Default Message:</label>
-                            <textarea id="dm-default-msg" style="width:100%;height:80px;background:#27272a;border:1px solid #3f3f46;color:white;border-radius:6px;padding:8px;margin-top:4px;">Hey! Check out bumpconnect.xyz for amazing creator tools!</textarea>
+                            <label style="font-size:13px;color:#a1a1aa;">Message to send:</label>
+                            <textarea id="dm-default-msg" style="width:100%;height:100px;background:#27272a;border:1px solid #3f3f46;color:white;border-radius:6px;padding:8px;margin-top:4px;">Hey! 👋 I noticed your brand and love what you're doing! We help businesses like yours grow on social media. Check out bumpsyndicate.xyz - we'd love to help you scale! 🚀</textarea>
                         </div>
-                        <div style="border-top:1px solid #3f3f46;padding-top:12px;">
-                            <div style="font-size:13px;color:#a1a1aa;margin-bottom:8px;">Custom Groups (different message per group):</div>
-                            <div id="dm-groups"></div>
-                            <button class="btn btn-secondary" onclick="addDmGroup()" style="margin-top:8px;">+ Add Group</button>
-                        </div>
+                        <button class="btn btn-secondary" onclick="saveDmMessage()">💾 Save Message</button>
                     </div>
                 </div>
             </div>
             <div class="card" style="margin-top:20px;">
-                <div class="card-title"><span>DM Status</span></div>
+                <div class="card-title"><span>📊 DM Status</span></div>
                 <div class="stats">
-                    <div class="stat"><div class="stat-value" id="dm-sent">0</div><div class="stat-label">DMs Sent</div></div>
-                    <div class="stat"><div class="stat-value" id="dm-queue">0</div><div class="stat-label">In Queue</div></div>
+                    <div class="stat"><div class="stat-value" id="dm-sent">0</div><div class="stat-label">DMs Sent (Session)</div></div>
+                    <div class="stat"><div class="stat-value" id="dm-today">0</div><div class="stat-label">Sent Today</div></div>
+                    <div class="stat"><div class="stat-value" id="dm-remaining">250</div><div class="stat-label">Remaining Today</div></div>
+                    <div class="stat"><div class="stat-value" id="dm-profiles-done">0</div><div class="stat-label">Profiles Done</div></div>
                 </div>
                 <div class="progress"><div class="progress-fill" id="dm-prog" style="width:0%"></div></div>
-                <p class="center" style="color:#71717a" id="dm-st">Ready</p>
+                <p class="center" style="color:#71717a" id="dm-st">Ready - Click Start to begin brand outreach</p>
                 <div class="center" style="margin-top:20px;">
-                    <button class="btn btn-success" id="dm-startb" onclick="startDm()">▶ Start DM</button>
+                    <button class="btn btn-success" id="dm-startb" onclick="startDm()">▶ Start Brand Outreach</button>
                     <button class="btn btn-danger" id="dm-stopb" onclick="stopDm()" style="display:none">⏹ Stop</button>
                 </div>
             </div>
             <div class="card" style="margin-top:20px;">
                 <div class="card-title"><span>DM Log</span><button class="btn btn-secondary" style="padding:4px 8px" onclick="clrDmLog()">Clear</button></div>
-                <div class="logs" id="dm-logs">Ready...</div>
+                <div class="logs" id="dm-logs">Ready - Will search TikTok for brands and send DMs...</div>
             </div>
             <div class="card" style="margin-top:20px;">
                 <div class="card-title"><span>DM History</span>
