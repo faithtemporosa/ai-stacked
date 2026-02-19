@@ -84,7 +84,7 @@ settings = {
 dm_settings = {
     "enabled": False,
     "max_dms_per_profile": 100,  # Max 100 DMs per profile per day
-    "max_dms_total": 250,  # Max 250 DMs total per day
+    "max_dms_total": 2500,  # Max 2500 DMs total per day
     "parallel_browsers": 2,  # 2 profiles open at the same time
     "min_delay": 45,  # Seconds between DMs
     "max_delay": 90,
