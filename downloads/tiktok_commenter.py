@@ -26,6 +26,17 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import Flask, render_template_string, jsonify, request
 
+# Supabase for cloud sync
+try:
+    from supabase import create_client
+    SUPABASE_URL = "https://qwnhywiygyvlhjxxrbkk.supabase.co"
+    SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3bmh5d2l5Z3l2bGhqeHhyYmtrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNTkxNzgsImV4cCI6MjA4NjgzNTE3OH0.X7RdTeOPrJCkf8c1oOUGHv1tntDigluOnj7bPw50tKE"
+    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+    HAS_SUPABASE = True
+except ImportError:
+    HAS_SUPABASE = False
+    print("Note: Install supabase for cloud sync: pip install supabase")
+
 try:
     from playwright.sync_api import sync_playwright
     HAS_PLAYWRIGHT = True
@@ -41,7 +52,7 @@ GOOGLE_SHEET_ID = "1cgjxB09nXSsKMEFwNxQlDzl8xVDyQgT0o8aKm6YOJ-o"
 SHEET_NAMES = ["Bump Connect", "Kollabsy", "Bump Syndicate"]
 
 # Cloud API for real-time reporting (update this URL after deployment)
-CLOUD_API_URL = "https://tiktok-commenter.onrender.com/api"
+CLOUD_API_URL = "https://profile-reports-sync.preview.emergentagent.com/api"
 
 MIN_DELAY_BETWEEN_COMMENTS = 30
 MAX_DELAY_BETWEEN_COMMENTS = 60
@@ -106,42 +117,49 @@ def save_report_history():
         print(f"Error saving history: {e}")
 
 def send_to_cloud(report_data):
-    """Send a single comment report to the cloud API for real-time dashboard"""
+    """Send a single comment report to Supabase for real-time dashboard"""
+    if not HAS_SUPABASE:
+        return False
     try:
-        response = requests.post(
-            f"{CLOUD_API_URL}/reports",
-            json=report_data,
-            timeout=10
-        )
-        if response.status_code == 200:
-            log(f"    ☁️ Synced to cloud dashboard")
-            return True
-        else:
-            log(f"    ⚠ Cloud sync failed: {response.status_code}")
-    except requests.exceptions.ConnectionError:
-        log(f"    ⚠ Cloud offline - saved locally")
+        supabase.table('comment_reports').insert({
+            'timestamp': report_data.get('timestamp'),
+            'profile': report_data.get('profile'),
+            'video_url': report_data.get('video_url'),
+            'video_id': report_data.get('video_id'),
+            'comment': report_data.get('comment'),
+            'sheet': report_data.get('sheet')
+        }).execute()
+        log(f"    ☁️ Synced to Supabase")
+        return True
     except Exception as e:
-        log(f"    ⚠ Cloud sync error: {e}")
+        if 'duplicate' in str(e).lower() or '23505' in str(e):
+            log(f"    ⚠ Already in cloud (duplicate)")
+        else:
+            log(f"    ⚠ Cloud sync error: {e}")
     return False
 
 def sync_all_to_cloud():
-    """Sync all local reports to cloud (for bulk sync)"""
-    if not automation_status["report"]:
+    """Sync all local reports to Supabase (for bulk sync)"""
+    if not automation_status["report"] or not HAS_SUPABASE:
         return 0
-    
+
     synced = 0
-    try:
-        response = requests.post(
-            f"{CLOUD_API_URL}/reports/bulk",
-            json={"reports": automation_status["report"]},
-            timeout=30
-        )
-        if response.status_code == 200:
-            data = response.json()
-            synced = data.get("inserted", 0)
-            log(f"☁️ Synced {synced} reports to cloud")
-    except Exception as e:
-        log(f"⚠ Bulk sync failed: {e}")
+    for report in automation_status["report"]:
+        try:
+            supabase.table('comment_reports').insert({
+                'timestamp': report.get('timestamp'),
+                'profile': report.get('profile'),
+                'video_url': report.get('video_url'),
+                'video_id': report.get('video_id'),
+                'comment': report.get('comment'),
+                'sheet': report.get('sheet')
+            }).execute()
+            synced += 1
+        except Exception as e:
+            if 'duplicate' not in str(e).lower() and '23505' not in str(e):
+                print(f"Sync error: {e}")
+
+    log(f"☁️ Synced {synced} reports to Supabase")
     return synced
 
 def log(message):
@@ -159,7 +177,10 @@ def log(message):
         pass
 
 def sync_logs_to_cloud():
-    """Send current logs and status to cloud dashboard"""
+    """Send current logs and status to Supabase"""
+    if not HAS_SUPABASE:
+        return
+
     try:
         log_entries = []
         for log_line in automation_status["logs"][-50:]:  # Send last 50 logs
@@ -170,28 +191,29 @@ def sync_logs_to_cloud():
             else:
                 ts = datetime.now().strftime("%H:%M:%S")
                 msg = log_line
-            
+
             log_entries.append({
                 "timestamp": ts,
                 "message": msg,
                 "level": "error" if "✗" in msg else "success" if "✓" in msg else "info"
             })
-        
-        requests.post(
-            f"{CLOUD_API_URL}/logs",
-            json={
-                "logs": log_entries,
-                "status": {
-                    "running": automation_status["running"],
-                    "current_profile": automation_status["current_profile"],
-                    "progress": automation_status["progress"],
-                    "total": automation_status["total"],
-                    "comments_posted": automation_status["comments_posted"],
-                    "completed": len(automation_status["completed"])
-                }
-            },
-            timeout=5
-        )
+
+        status_data = {
+            "running": automation_status["running"],
+            "current_profile": automation_status["current_profile"],
+            "progress": automation_status["progress"],
+            "total": automation_status["total"],
+            "comments_posted": automation_status["comments_posted"],
+            "completed": len(automation_status["completed"])
+        }
+
+        # Upsert to live_logs table (single row)
+        supabase.table('live_logs').upsert({
+            'id': '00000000-0000-0000-0000-000000000001',  # Fixed ID for singleton
+            'logs': log_entries,
+            'status': status_data,
+            'updated_at': datetime.now().isoformat()
+        }).execute()
     except:
         pass  # Silently fail - don't interrupt main process
 
@@ -1112,11 +1134,19 @@ DASHBOARD_HTML = """
                 <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">
                     <button class="btn btn-primary" onclick="expCSV()">📥 Export CSV</button>
                     <button class="btn btn-secondary" onclick="syncCloud()" style="background:#4c1d95;">☁️ Sync to Cloud</button>
+                    <button class="btn btn-danger" onclick="clrReport()">🗑️ Clear All</button>
+                </div>
+                <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;flex-wrap:wrap;padding:12px;background:#18181b;border-radius:8px;">
+                    <span style="color:#71717a;font-size:12px;">📅 Date Range:</span>
+                    <input type="date" id="startDate" onchange="applyDateRange()" style="padding:6px 10px;background:#27272a;border:1px solid #3f3f46;border-radius:6px;color:#e4e4e7;font-size:12px;">
+                    <span style="color:#71717a;">to</span>
+                    <input type="date" id="endDate" onchange="applyDateRange()" style="padding:6px 10px;background:#27272a;border:1px solid #3f3f46;border-radius:6px;color:#e4e4e7;font-size:12px;">
+                    <button class="btn btn-secondary" onclick="clearDateRange()" style="padding:6px 12px;">Clear</button>
+                    <span style="color:#3f3f46;">|</span>
                     <button class="btn btn-secondary" onclick="filterToday()">Today</button>
                     <button class="btn btn-secondary" onclick="filterWeek()">This Week</button>
                     <button class="btn btn-secondary" onclick="filterMonth()">This Month</button>
                     <button class="btn btn-secondary" onclick="filterAll()">All Time</button>
-                    <button class="btn btn-danger" onclick="clrReport()">🗑️ Clear All</button>
                 </div>
                 <div style="background:#1e1b4b;border:1px solid #4c1d95;border-radius:8px;padding:12px;margin-bottom:16px;">
                     <div style="font-size:12px;color:#a78bfa;margin-bottom:4px;">☁️ Team Dashboard</div>
@@ -1127,11 +1157,11 @@ DASHBOARD_HTML = """
                     <table class="report-table"><thead><tr><th>Date/Time</th><th>Profile</th><th>Comment</th><th>Video</th><th>Sheet</th></tr></thead><tbody id="rb"></tbody></table>
                 </div>
                 <div style="margin-top:16px;padding:12px;background:#27272a;border-radius:8px;">
-                    <div style="display:flex;gap:24px;justify-content:center;">
-                        <div style="text-align:center"><div style="font-size:24px;font-weight:700;color:#4ade80" id="sum-total">0</div><div style="font-size:11px;color:#71717a">Total Comments</div></div>
-                        <div style="text-align:center"><div style="font-size:24px;font-weight:700;color:#a78bfa" id="sum-profiles">0</div><div style="font-size:11px;color:#71717a">Profiles Used</div></div>
-                        <div style="text-align:center"><div style="font-size:24px;font-weight:700;color:#fbbf24" id="sum-videos">0</div><div style="font-size:11px;color:#71717a">Videos</div></div>
-                        <div style="text-align:center"><div style="font-size:24px;font-weight:700;color:#f87171" id="sum-today">0</div><div style="font-size:11px;color:#71717a">Today</div></div>
+                    <div style="display:flex;gap:24px;justify-content:center;flex-wrap:wrap;">
+                        <div style="text-align:center;padding:8px 16px;background:#1e1b4b;border:1px solid #4c1d95;border-radius:8px;"><div style="font-size:24px;font-weight:700;color:#a78bfa" id="sum-month">0</div><div style="font-size:11px;color:#71717a">This Month</div></div>
+                        <div style="text-align:center;padding:8px 16px;background:#172554;border:1px solid #1d4ed8;border-radius:8px;"><div style="font-size:24px;font-weight:700;color:#60a5fa" id="sum-week">0</div><div style="font-size:11px;color:#71717a">This Week</div></div>
+                        <div style="text-align:center;padding:8px 16px;background:#14532d;border:1px solid #16a34a;border-radius:8px;"><div style="font-size:24px;font-weight:700;color:#4ade80" id="sum-today">0</div><div style="font-size:11px;color:#71717a">Today</div></div>
+                        <div style="text-align:center;padding:8px 16px;background:#27272a;border:1px solid #3f3f46;border-radius:8px;"><div style="font-size:24px;font-weight:700;color:#e4e4e7" id="sum-total">0</div><div style="font-size:11px;color:#71717a">All Time</div></div>
                     </div>
                 </div>
             </div>
@@ -1181,11 +1211,42 @@ DASHBOARD_HTML = """
         function renderReport(){
             document.getElementById('rc').textContent=report.length+' total';
             document.getElementById('rb').innerHTML=filteredReport.length?filteredReport.slice().reverse().map(r=>'<tr><td style="white-space:nowrap">'+r.timestamp+'</td><td>'+r.profile+'</td><td title="'+r.comment.replace(/"/g,'&quot;')+'">'+r.comment.substring(0,35)+'...</td><td><a href="'+r.video_url+'" target="_blank">🔗 Open</a></td><td>'+r.sheet+'</td></tr>').join(''):'<tr><td colspan="5" style="text-align:center;color:#71717a;padding:20px">No comments for this period</td></tr>';
-            document.getElementById('sum-total').textContent=report.length;
-            document.getElementById('sum-profiles').textContent=[...new Set(report.map(r=>r.profile))].length;
-            document.getElementById('sum-videos').textContent=[...new Set(report.map(r=>r.video_id))].length;
-            const today=new Date().toISOString().split('T')[0];
-            document.getElementById('sum-today').textContent=report.filter(r=>r.timestamp.startsWith(today)).length;
+
+            const now=new Date();
+            const todayStr=now.toISOString().split('T')[0];
+            const weekAgo=new Date(now-7*24*60*60*1000).toISOString().split('T')[0];
+            const monthAgo=new Date(now-30*24*60*60*1000).toISOString().split('T')[0];
+
+            document.getElementById('sum-total').textContent=report.length.toLocaleString();
+            document.getElementById('sum-month').textContent=report.filter(r=>r.timestamp>=monthAgo).length.toLocaleString();
+            document.getElementById('sum-week').textContent=report.filter(r=>r.timestamp>=weekAgo).length.toLocaleString();
+            document.getElementById('sum-today').textContent=report.filter(r=>r.timestamp.startsWith(todayStr)).length.toLocaleString();
+        }
+
+        function applyDateRange(){
+            const startDate=document.getElementById('startDate').value;
+            const endDate=document.getElementById('endDate').value;
+            if(!startDate&&!endDate){filterAll();return;}
+            filteredReport=report.filter(r=>{
+                const ts=r.timestamp.split(' ')[0];
+                if(startDate&&ts<startDate)return false;
+                if(endDate&&ts>endDate)return false;
+                return true;
+            });
+            let info='Showing: ';
+            if(startDate&&endDate)info+=startDate+' to '+endDate;
+            else if(startDate)info+='From '+startDate;
+            else if(endDate)info+='Until '+endDate;
+            info+=' ('+filteredReport.length+' comments)';
+            document.getElementById('filter-info').textContent=info;
+            currentFilter='custom';
+            renderReport();
+        }
+
+        function clearDateRange(){
+            document.getElementById('startDate').value='';
+            document.getElementById('endDate').value='';
+            filterAll();
         }
         
         async function upd(){try{const r=await fetch('/api/status');const d=await r.json();document.getElementById('prog').style.width=(d.total?(d.progress/d.total*100):0)+'%';document.getElementById('sp').textContent=d.completed.length;document.getElementById('sc').textContent=d.comments_posted||0;document.getElementById('st').textContent=d.running?'Running: '+d.current_profile+' ('+d.progress+'/'+d.total+')':'Ready';if(!d.running){document.getElementById('startb').style.display='inline';document.getElementById('stopb').style.display='none';}if(d.logs.length)document.getElementById('logs').innerHTML=d.logs.map(l=>'<div style="color:'+(l.includes('✗')?'#f87171':l.includes('✓')?'#4ade80':'#a1a1aa')+'">'+l+'</div>').join('');if(d.report&&d.report.length!==report.length){report=d.report;applyFilter();}}catch(e){}}

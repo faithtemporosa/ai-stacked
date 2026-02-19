@@ -1,16 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import "./App.css";
-import axios from "axios";
-import { AuthProvider, useAuth } from "./contexts/AuthContext";
-import AuthPage from "./pages/AuthPage";
-import { 
-  Activity, 
-  MessageCircle, 
-  Users, 
-  Video, 
-  TrendingUp, 
+import { supabase } from "./lib/supabase";
+import {
+  MessageCircle,
+  TrendingUp,
   Calendar,
-  Filter,
   RefreshCw,
   ExternalLink,
   Sparkles,
@@ -20,24 +14,16 @@ import {
   Download,
   Terminal,
   Play,
-  Pause,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  LogOut,
-  User,
-  Settings
+  Pause
 } from "lucide-react";
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
 
 // Auto-refresh interval in milliseconds
 const REFRESH_INTERVAL = 10000; // 10 seconds
 
-function Dashboard() {
-  const { user, logout, isAuthenticated } = useAuth();
-  const [showAuthModal, setShowAuthModal] = useState(false);
+// Stats display: This Month, This Week, Today, All Time
+// Updated: 2024-02-17
+
+function App() {
   const [stats, setStats] = useState(null);
   const [reports, setReports] = useState([]);
   const [totalReports, setTotalReports] = useState(0);
@@ -50,13 +36,92 @@ function Dashboard() {
   const [logs, setLogs] = useState([]);
   const [automationStatus, setAutomationStatus] = useState(null);
   const [logsUpdatedAt, setLogsUpdatedAt] = useState(null);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const fileInputRef = useRef(null);
-  const logsEndRef = useRef(null);
+  const logsContainerRef = useRef(null);
+
+  // Scroll to top on initial page load
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   const fetchStats = useCallback(async () => {
     try {
-      const res = await axios.get(`${API}/reports/stats`);
-      setStats(res.data);
+      // Get total count
+      const { count: totalCount } = await supabase
+        .from('comment_reports')
+        .select('*', { count: 'exact', head: true });
+
+      // Get today's count
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const { count: todayCount } = await supabase
+        .from('comment_reports')
+        .select('*', { count: 'exact', head: true })
+        .gte('timestamp', today.toISOString());
+
+      // Get this week's count (last 7 days)
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const { count: weekCount } = await supabase
+        .from('comment_reports')
+        .select('*', { count: 'exact', head: true })
+        .gte('timestamp', weekAgo.toISOString());
+
+      // Get this month's count
+      const monthAgo = new Date();
+      monthAgo.setMonth(monthAgo.getMonth() - 1);
+      const { count: monthCount } = await supabase
+        .from('comment_reports')
+        .select('*', { count: 'exact', head: true })
+        .gte('timestamp', monthAgo.toISOString());
+
+      // Get unique profiles
+      const { data: profilesData } = await supabase
+        .from('comment_reports')
+        .select('profile');
+      const uniqueProfiles = new Set(profilesData?.map(r => r.profile) || []).size;
+
+      // Get unique videos
+      const { data: videosData } = await supabase
+        .from('comment_reports')
+        .select('video_id');
+      const uniqueVideos = new Set(videosData?.map(r => r.video_id) || []).size;
+
+      // Get counts by brand (sheet) - ALL TIME
+      const { data: brandData } = await supabase
+        .from('comment_reports')
+        .select('sheet');
+      const byBrand = {};
+      brandData?.forEach(r => {
+        if (r.sheet) {
+          byBrand[r.sheet] = (byBrand[r.sheet] || 0) + 1;
+        }
+      });
+
+      // Get counts by brand for TODAY
+      const { data: todayBrandData } = await supabase
+        .from('comment_reports')
+        .select('sheet')
+        .gte('timestamp', today.toISOString());
+      const todayByBrand = {};
+      todayBrandData?.forEach(r => {
+        if (r.sheet) {
+          todayByBrand[r.sheet] = (todayByBrand[r.sheet] || 0) + 1;
+        }
+      });
+
+      setStats({
+        total_comments: totalCount || 0,
+        today_comments: todayCount || 0,
+        week_comments: weekCount || 0,
+        month_comments: monthCount || 0,
+        unique_profiles: uniqueProfiles,
+        unique_videos: uniqueVideos,
+        by_brand: byBrand,
+        today_by_brand: todayByBrand
+      });
     } catch (err) {
       console.error("Error fetching stats:", err);
     }
@@ -64,25 +129,70 @@ function Dashboard() {
 
   const fetchReports = useCallback(async () => {
     try {
-      const params = new URLSearchParams();
-      if (filter !== "all") params.append("filter", filter);
-      params.append("limit", "100");
-      
-      const res = await axios.get(`${API}/reports?${params.toString()}`);
-      setReports(res.data.reports || []);
-      setTotalReports(res.data.total || 0);
+      let query = supabase
+        .from('comment_reports')
+        .select('*', { count: 'exact' })
+        .order('timestamp', { ascending: false })
+        .limit(100);
+
+      // Apply custom date range if set
+      if (startDate) {
+        query = query.gte('timestamp', new Date(startDate).toISOString());
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        query = query.lte('timestamp', end.toISOString());
+      }
+
+      // Apply preset filter only if no custom dates
+      if (!startDate && !endDate) {
+        if (filter === "today") {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          query = query.gte('timestamp', today.toISOString());
+        } else if (filter === "week") {
+          const weekAgo = new Date();
+          weekAgo.setDate(weekAgo.getDate() - 7);
+          query = query.gte('timestamp', weekAgo.toISOString());
+        } else if (filter === "month") {
+          const monthAgo = new Date();
+          monthAgo.setMonth(monthAgo.getMonth() - 1);
+          query = query.gte('timestamp', monthAgo.toISOString());
+        }
+      }
+
+      const { data, count, error } = await query;
+
+      if (error) throw error;
+
+      setReports(data || []);
+      setTotalReports(count || 0);
       setLastUpdated(new Date());
     } catch (err) {
       console.error("Error fetching reports:", err);
     }
-  }, [filter]);
+  }, [filter, startDate, endDate]);
 
   const fetchLogs = useCallback(async () => {
     try {
-      const res = await axios.get(`${API}/logs`);
-      setLogs(res.data.logs || []);
-      setAutomationStatus(res.data.status || null);
-      setLogsUpdatedAt(res.data.updated_at);
+      const { data, error } = await supabase
+        .from('live_logs')
+        .select('*')
+        .eq('id', '00000000-0000-0000-0000-000000000001')
+        .maybeSingle();
+
+      if (error) {
+        console.error("Supabase logs error:", error);
+        return;
+      }
+
+      if (data) {
+        console.log("Logs fetched:", data.logs?.length || 0, "entries");
+        setLogs(data.logs || []);
+        setAutomationStatus(data.status || null);
+        setLogsUpdatedAt(data.updated_at);
+      }
     } catch (err) {
       console.error("Error fetching logs:", err);
     }
@@ -104,27 +214,97 @@ function Dashboard() {
     try {
       const text = await file.text();
       const data = JSON.parse(text);
-      
-      const res = await axios.post(`${API}/reports/import`, data);
+
+      const reportsToInsert = data.reports || data;
+      let inserted = 0;
+      let skipped = 0;
+
+      for (const report of reportsToInsert) {
+        const { error } = await supabase
+          .from('comment_reports')
+          .insert({
+            timestamp: report.timestamp,
+            profile: report.profile,
+            video_url: report.video_url,
+            video_id: report.video_id,
+            comment: report.comment,
+            sheet: report.sheet
+          });
+
+        if (error) {
+          if (error.code === '23505') { // Unique violation
+            skipped++;
+          } else {
+            console.error('Insert error:', error);
+          }
+        } else {
+          inserted++;
+        }
+      }
+
       setImportResult({
         success: true,
-        message: `Imported ${res.data.inserted} comments (${res.data.skipped} duplicates skipped)`
+        message: `Imported ${inserted} comments (${skipped} duplicates skipped)`
       });
-      
-      // Refresh data
+
       await fetchAll();
     } catch (err) {
       console.error("Import error:", err);
       setImportResult({
         success: false,
-        message: err.response?.data?.detail || "Failed to import file. Make sure it's a valid JSON file."
+        message: "Failed to import file. Make sure it's a valid JSON file."
       });
     } finally {
       setImporting(false);
-      // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      let query = supabase
+        .from('comment_reports')
+        .select('*')
+        .order('timestamp', { ascending: false });
+
+      if (filter === "today") {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        query = query.gte('timestamp', today.toISOString());
+      } else if (filter === "week") {
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        query = query.gte('timestamp', weekAgo.toISOString());
+      } else if (filter === "month") {
+        const monthAgo = new Date();
+        monthAgo.setMonth(monthAgo.getMonth() - 1);
+        query = query.gte('timestamp', monthAgo.toISOString());
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      // Convert to CSV
+      const headers = ['timestamp', 'profile', 'comment', 'sheet', 'video_url', 'video_id'];
+      const csvContent = [
+        headers.join(','),
+        ...data.map(row =>
+          headers.map(h => `"${(row[h] || '').toString().replace(/"/g, '""')}"`).join(',')
+        )
+      ].join('\n');
+
+      // Download
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `comments_export_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export error:', err);
     }
   };
 
@@ -133,29 +313,69 @@ function Dashboard() {
     fetchAll();
   }, [fetchAll]);
 
-  // Auto-refresh
+  // Refetch when date range changes
+  useEffect(() => {
+    fetchReports();
+  }, [startDate, endDate, fetchReports]);
+
+  // Supabase Realtime subscription for instant updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('comment_reports_changes')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'comment_reports' },
+        (payload) => {
+          console.log('New comment received:', payload.new);
+          // Refresh data when new comment is inserted
+          fetchStats();
+          fetchReports();
+          setLastUpdated(new Date());
+        }
+      )
+      .subscribe();
+
+    // Also subscribe to live_logs changes
+    const logsChannel = supabase
+      .channel('live_logs_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'live_logs' },
+        () => {
+          fetchLogs();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      supabase.removeChannel(logsChannel);
+    };
+  }, [fetchStats, fetchReports, fetchLogs]);
+
+  // Auto-refresh (fallback polling)
   useEffect(() => {
     if (!autoRefresh) return;
-    
+
     const interval = setInterval(() => {
       fetchStats();
       fetchReports();
       fetchLogs();
     }, REFRESH_INTERVAL);
-    
+
     return () => clearInterval(interval);
   }, [autoRefresh, fetchStats, fetchReports, fetchLogs]);
 
-  // Auto-scroll logs
+  // Auto-scroll logs (within container only, not the whole page)
   useEffect(() => {
-    if (logsEndRef.current) {
-      logsEndRef.current.scrollIntoView({ behavior: "smooth" });
+    if (logsContainerRef.current) {
+      logsContainerRef.current.scrollTop = logsContainerRef.current.scrollHeight;
     }
   }, [logs]);
 
   const formatTimestamp = (ts) => {
     if (!ts) return "-";
-    const date = new Date(ts.replace(" ", "T"));
+    const date = new Date(ts);
     return date.toLocaleString();
   };
 
@@ -201,12 +421,10 @@ function Dashboard() {
               </div>
               <div>
                 <h1 className="text-xl font-bold tracking-tight" data-testid="app-title">TikTok Comments Dashboard</h1>
-                <p className="text-zinc-500 text-sm">
-                  {user?.team_name ? `Team: ${user.team_name}` : 'Real-time reporting for the team'}
-                </p>
+                <p className="text-zinc-500 text-sm">Real-time reporting for the team</p>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-4">
               {/* Hidden file input */}
               <input
@@ -217,7 +435,7 @@ function Dashboard() {
                 className="hidden"
                 data-testid="file-input"
               />
-              
+
               {/* Import button */}
               <button
                 onClick={() => fileInputRef.current?.click()}
@@ -231,20 +449,20 @@ function Dashboard() {
 
               {/* Export button */}
               <button
-                onClick={() => window.open(`${API}/reports/export?filter=${filter}`, '_blank')}
+                onClick={handleExport}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-sm transition-all"
                 data-testid="export-btn"
               >
                 <Download className="w-4 h-4" />
                 Export CSV
               </button>
-              
+
               {/* Auto-refresh toggle */}
               <button
                 onClick={() => setAutoRefresh(!autoRefresh)}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
-                  autoRefresh 
-                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" 
+                  autoRefresh
+                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
                     : "bg-zinc-800 text-zinc-400 border border-zinc-700"
                 }`}
                 data-testid="auto-refresh-toggle"
@@ -252,7 +470,7 @@ function Dashboard() {
                 <RefreshCw className={`w-4 h-4 ${autoRefresh ? "animate-spin" : ""}`} style={{animationDuration: "3s"}} />
                 {autoRefresh ? "Live" : "Paused"}
               </button>
-              
+
               {/* Manual refresh */}
               <button
                 onClick={fetchAll}
@@ -262,40 +480,13 @@ function Dashboard() {
                 <RefreshCw className="w-4 h-4" />
                 Refresh
               </button>
-              
+
               {/* Last updated */}
               {lastUpdated && (
                 <span className="text-xs text-zinc-500 flex items-center gap-1">
                   <Clock className="w-3 h-3" />
                   {lastUpdated.toLocaleTimeString()}
                 </span>
-              )}
-
-              {/* Auth section */}
-              {isAuthenticated ? (
-                <div className="flex items-center gap-2 ml-2 pl-4 border-l border-zinc-700">
-                  <div className="flex items-center gap-2 px-3 py-2 bg-zinc-800 rounded-lg">
-                    <User className="w-4 h-4 text-violet-400" />
-                    <span className="text-sm text-zinc-300">{user?.name}</span>
-                  </div>
-                  <button
-                    onClick={logout}
-                    className="p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-all"
-                    title="Sign out"
-                    data-testid="logout-btn"
-                  >
-                    <LogOut className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowAuthModal(true)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-sm text-zinc-300 transition-all ml-2"
-                  data-testid="signin-btn"
-                >
-                  <User className="w-4 h-4" />
-                  Sign In
-                </button>
               )}
             </div>
           </div>
@@ -305,17 +496,17 @@ function Dashboard() {
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* Import Result Notification */}
         {importResult && (
-          <div 
+          <div
             className={`mb-6 p-4 rounded-xl border ${
-              importResult.success 
-                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" 
+              importResult.success
+                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
                 : "bg-red-500/10 border-red-500/30 text-red-400"
             }`}
             data-testid="import-result"
           >
             <div className="flex items-center justify-between">
               <span>{importResult.message}</span>
-              <button 
+              <button
                 onClick={() => setImportResult(null)}
                 className="text-xs opacity-70 hover:opacity-100"
               >
@@ -351,27 +542,16 @@ function Dashboard() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
-          {/* Total Comments */}
-          <div className="bg-gradient-to-br from-violet-900/40 to-violet-900/20 border border-violet-500/30 rounded-xl p-4" data-testid="stat-total">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          {/* This Month */}
+          <div className="bg-gradient-to-br from-violet-900/40 to-violet-900/20 border border-violet-500/30 rounded-xl p-4" data-testid="stat-month">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center">
-                <MessageCircle className="w-5 h-5 text-violet-400" />
+                <Calendar className="w-5 h-5 text-violet-400" />
               </div>
-              <div className="text-2xl font-bold">{stats?.total_comments || 0}</div>
+              <div className="text-2xl font-bold">{stats?.month_comments?.toLocaleString() || 0}</div>
             </div>
-            <p className="text-xs text-zinc-500">Total Comments</p>
-          </div>
-
-          {/* Today */}
-          <div className="bg-gradient-to-br from-emerald-900/40 to-emerald-900/20 border border-emerald-500/30 rounded-xl p-4" data-testid="stat-today">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-emerald-400" />
-              </div>
-              <div className="text-2xl font-bold">{stats?.today_comments || 0}</div>
-            </div>
-            <p className="text-xs text-zinc-500">Today</p>
+            <p className="text-xs text-zinc-500">This Month</p>
           </div>
 
           {/* This Week */}
@@ -380,54 +560,74 @@ function Dashboard() {
               <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
                 <TrendingUp className="w-5 h-5 text-blue-400" />
               </div>
-              <div className="text-2xl font-bold">{stats?.week_comments || 0}</div>
+              <div className="text-2xl font-bold">{stats?.week_comments?.toLocaleString() || 0}</div>
             </div>
             <p className="text-xs text-zinc-500">This Week</p>
           </div>
 
-          {/* Profiles */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4" data-testid="stat-profiles">
+          {/* Today */}
+          <div className="bg-gradient-to-br from-emerald-900/40 to-emerald-900/20 border border-emerald-500/30 rounded-xl p-4" data-testid="stat-today">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center">
-                <Users className="w-5 h-5 text-zinc-400" />
+              <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-emerald-400" />
               </div>
-              <div className="text-2xl font-bold">{stats?.unique_profiles || 0}/25</div>
+              <div className="text-2xl font-bold">{stats?.today_comments?.toLocaleString() || 0}</div>
             </div>
-            <p className="text-xs text-zinc-500">Active Profiles</p>
+            <p className="text-xs text-zinc-500">Today</p>
           </div>
 
-          {/* Videos */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4" data-testid="stat-videos">
+          {/* Total */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4" data-testid="stat-total">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center">
-                <Video className="w-5 h-5 text-zinc-400" />
+                <MessageCircle className="w-5 h-5 text-zinc-400" />
               </div>
-              <div className="text-2xl font-bold">{stats?.unique_videos || 0}</div>
+              <div className="text-2xl font-bold">{stats?.total_comments?.toLocaleString() || 0}</div>
             </div>
-            <p className="text-xs text-zinc-500">Videos</p>
-          </div>
-
-          {/* Activity Indicator */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4" data-testid="stat-activity">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center">
-                <Activity className={`w-5 h-5 ${autoRefresh ? "text-emerald-400" : "text-zinc-400"}`} />
-              </div>
-              <div className="text-2xl font-bold">{autoRefresh ? "ON" : "OFF"}</div>
-            </div>
-            <p className="text-xs text-zinc-500">Live Updates</p>
+            <p className="text-xs text-zinc-500">All Time</p>
           </div>
         </div>
 
-        {/* Brand Stats */}
-        {stats?.by_brand && Object.keys(stats.by_brand).length > 0 && (
+        {/* Date Range Filter */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 mb-6">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-zinc-400" />
+              <span className="text-sm text-zinc-400">Date Range:</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-200 focus:outline-none focus:border-violet-500"
+              />
+              <span className="text-zinc-500">to</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-200 focus:outline-none focus:border-violet-500"
+              />
+            </div>
+            <button
+              onClick={() => { setStartDate(""); setEndDate(""); setFilter("all"); }}
+              className="px-3 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-lg text-sm transition-colors"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+
+        {/* Brand Stats - Today */}
+        {stats?.today_by_brand && Object.keys(stats.today_by_brand).length > 0 && (
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-8">
             <div className="flex items-center gap-2 mb-4">
               <BarChart3 className="w-5 h-5 text-zinc-400" />
-              <h3 className="font-semibold">Comments by Brand</h3>
+              <h3 className="font-semibold">Today's Comments by Brand</h3>
             </div>
             <div className="grid grid-cols-3 gap-4">
-              {Object.entries(stats.by_brand).map(([brand, count]) => (
+              {Object.entries(stats.today_by_brand).map(([brand, count]) => (
                 <div key={brand} className={`rounded-lg p-4 ${getBrandColor(brand)}`}>
                   <div className="text-2xl font-bold">{count}</div>
                   <div className="text-sm opacity-80">{brand}</div>
@@ -437,34 +637,9 @@ function Dashboard() {
           </div>
         )}
 
-        {/* Filters */}
-        <div className="flex items-center gap-4 mb-6">
-          <div className="flex items-center gap-2 text-zinc-400">
-            <Filter className="w-4 h-4" />
-            <span className="text-sm">Filter:</span>
-          </div>
-          <div className="flex gap-2">
-            {[
-              { value: "all", label: "All Time" },
-              { value: "today", label: "Today" },
-              { value: "week", label: "This Week" },
-              { value: "month", label: "This Month" },
-            ].map((f) => (
-              <button
-                key={f.value}
-                onClick={() => setFilter(f.value)}
-                className={`px-4 py-2 rounded-lg text-sm transition-all ${
-                  filter === f.value
-                    ? "bg-violet-600 text-white"
-                    : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
-                }`}
-                data-testid={`filter-${f.value}`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-          <span className="text-sm text-zinc-500 ml-auto">
+        {/* Comments count */}
+        <div className="flex items-center mb-6">
+          <span className="text-sm text-zinc-500">
             Showing {reports.length} of {totalReports} comments
           </span>
         </div>
@@ -500,8 +675,8 @@ function Dashboard() {
                   </tr>
                 ) : (
                   reports.map((report, idx) => (
-                    <tr 
-                      key={report.id || idx} 
+                    <tr
+                      key={report.id || idx}
                       className="border-t border-zinc-800 hover:bg-zinc-800/30 transition-colors"
                       data-testid={`report-row-${idx}`}
                     >
@@ -581,7 +756,7 @@ function Dashboard() {
               )}
             </div>
           </div>
-          
+
           {/* Status Bar */}
           {automationStatus?.running && (
             <div className="px-4 py-2 bg-zinc-800/30 border-b border-zinc-800">
@@ -594,16 +769,16 @@ function Dashboard() {
                 </span>
               </div>
               <div className="mt-2 h-1.5 bg-zinc-700 rounded-full overflow-hidden">
-                <div 
+                <div
                   className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 transition-all duration-500"
                   style={{ width: `${automationStatus.total ? (automationStatus.progress / automationStatus.total) * 100 : 0}%` }}
                 />
               </div>
             </div>
           )}
-          
+
           {/* Logs */}
-          <div className="h-64 overflow-y-auto p-4 font-mono text-xs" data-testid="logs-container">
+          <div ref={logsContainerRef} className="h-64 overflow-y-auto p-4 font-mono text-xs" data-testid="logs-container">
             {logs.length === 0 ? (
               <div className="text-center text-zinc-500 py-8">
                 <Terminal className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -618,7 +793,6 @@ function Dashboard() {
                     {log.message}
                   </div>
                 ))}
-                <div ref={logsEndRef} />
               </>
             )}
           </div>
@@ -631,30 +805,7 @@ function Dashboard() {
           <p>TikTok Comments Dashboard - Real-time Team Reporting</p>
         </div>
       </footer>
-
-      {/* Auth Modal */}
-      {showAuthModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="relative">
-            <button
-              onClick={() => setShowAuthModal(false)}
-              className="absolute -top-4 -right-4 w-8 h-8 bg-zinc-800 hover:bg-zinc-700 rounded-full flex items-center justify-center text-zinc-400 hover:text-white z-10"
-            >
-              ×
-            </button>
-            <AuthPage onSuccess={() => setShowAuthModal(false)} />
-          </div>
-        </div>
-      )}
     </div>
-  );
-}
-
-function App() {
-  return (
-    <AuthProvider>
-      <Dashboard />
-    </AuthProvider>
   );
 }
 
