@@ -2444,22 +2444,27 @@ DASHBOARD_HTML = """
         function renderPostHistory(hist){
             document.getElementById('post-hist-tb').innerHTML=hist.length?hist.slice().reverse().slice(0,50).map(h=>'<tr><td>'+h.timestamp+'</td><td>'+h.profile+'</td><td>'+h.video.split('/').pop()+'</td><td>'+((h.caption||'').substring(0,30))+'</td><td style="color:#4ade80">'+h.status+'</td></tr>').join(''):'<tr><td colspan="5" style="text-align:center;color:#71717a">No posts made yet</td></tr>';
         }
-        async function addToPostQueue(){
+        async function addToPostQueue(useSchedule){
             const video=document.getElementById('post-video').value.trim();
             const caption=document.getElementById('post-caption').value.trim();
             const hashtags=document.getElementById('post-hashtags').value.trim();
             const profilesStr=document.getElementById('post-profiles').value.trim();
+            const scheduleVal=document.getElementById('post-schedule').value;
             if(!video){alert('Please enter a video path');return;}
+            if(useSchedule&&!scheduleVal){alert('Please pick a schedule date/time');return;}
             const profiles_list=profilesStr?profilesStr.split(',').map(p=>p.trim()).filter(p=>p):[];
             const hashtags_list=hashtags?hashtags.split(/[,\s]+/).map(h=>h.trim()).filter(h=>h):[];
-            const r=await fetch('/api/post/queue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({video_path:video,caption:caption,hashtags:hashtags_list,profiles:profiles_list})});
+            const scheduled_at=useSchedule?scheduleVal.replace('T',' '):'';
+            const r=await fetch('/api/post/queue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({video_path:video,caption:caption,hashtags:hashtags_list,profiles:profiles_list,scheduled_at:scheduled_at})});
             const d=await r.json();
             if(d.ok){
                 document.getElementById('post-video').value='';
                 document.getElementById('post-caption').value='';
                 document.getElementById('post-hashtags').value='';
                 document.getElementById('post-profiles').value='';
+                document.getElementById('post-schedule').value='';
                 updPost();
+                if(useSchedule)alert('Post scheduled for '+scheduled_at);
             }else{alert(d.error||'Failed to add');}
         }
         async function removeFromQueue(idx){
