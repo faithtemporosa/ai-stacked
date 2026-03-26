@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
+import { Card } from "./ui/card";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Slider } from "./ui/slider";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "./ui/button";
 import { TrendingUp, DollarSign, Clock, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
 interface ROICalculatorProps {

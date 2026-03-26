@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { DollarSign, Users, Percent, Sparkles, Zap, Clock, ArrowRight } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "../contexts/AuthContext";
 
 export const AffiliateMarquee = () => {
   const { user } = useAuth();

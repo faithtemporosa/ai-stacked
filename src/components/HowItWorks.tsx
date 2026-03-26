@@ -1,4 +1,4 @@
-import { Card } from "@/components/ui/card";
+import { Card } from "./ui/card";
 import { Search, Handshake, Rocket, LineChart } from "lucide-react";
 
 const steps = [

@@ -1,14 +1,14 @@
 // @ts-nocheck
 import { useState, useEffect, useRef, useMemo } from "react";
 import confetti from "canvas-confetti";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import { FuturisticBackground } from "@/components/FuturisticBackground";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Checkbox } from "@/components/ui/checkbox";
+import Header from "../components/Header";
+import Footer from "../components/Footer";
+import { FuturisticBackground } from "../components/FuturisticBackground";
+import { Button } from "../components/ui/button";
+import { Card } from "../components/ui/card";
+import { Badge } from "../components/ui/badge";
+import { Separator } from "../components/ui/separator";
+import { Checkbox } from "../components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,18 +18,18 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Progress } from "@/components/ui/progress";
+} from "../components/ui/alert-dialog";
+import { Label } from "../components/ui/label";
+import { Input } from "../components/ui/input";
+import { Textarea } from "../components/ui/textarea";
+import { Progress } from "../components/ui/progress";
 import { Link } from "react-router-dom";
 import { X, Check, TrendingDown, ShoppingCart, LogIn, Trash2, Gift, Zap } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { useCart } from "@/contexts/CartContext";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { toLaymanDescription } from "@/utils/laymanDescriptions";
+import { useToast } from "../hooks/use-toast";
+import { useCart } from "../contexts/CartContext";
+import { useAuth } from "../contexts/AuthContext";
+import { supabase } from "../integrations/supabase/client";
+import { toLaymanDescription } from "../utils/laymanDescriptions";
 import { useQuery } from "@tanstack/react-query";
 
 const UPSELLS = [

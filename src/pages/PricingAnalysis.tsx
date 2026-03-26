@@ -1,8 +1,8 @@
 // @ts-nocheck
 import { useState } from "react";
-import { exportPricingAnalysisPDF } from "@/utils/exportPricingAnalysisPDF";
+import { exportPricingAnalysisPDF } from "../utils/exportPricingAnalysisPDF";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { Button } from "../components/ui/button";
 import { FileDown, ArrowLeft, Loader2 } from "lucide-react";
 
 export default function PricingAnalysis() {

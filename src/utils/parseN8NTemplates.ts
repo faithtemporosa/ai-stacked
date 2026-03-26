@@ -1,4 +1,4 @@
-import type { AutomationCategory } from "@/data/automations";
+import type { AutomationCategory } from "../data/automations";
 
 export interface ParsedN8NWorkflow {
   id: string;

@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "../../integrations/supabase/client";
 import { Users, UserCheck, UserPlus, TrendingUp } from "lucide-react";
 
 interface Statistics {

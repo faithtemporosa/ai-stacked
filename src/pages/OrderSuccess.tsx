@@ -1,11 +1,11 @@
 // @ts-nocheck
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useCart } from "@/contexts/CartContext";
+import { useCart } from "../contexts/CartContext";
 import { CheckCircle, Loader2 } from "lucide-react";
-import { Card } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
-import { Separator } from "@/components/ui/separator";
+import { Card } from "../components/ui/card";
+import { supabase } from "../integrations/supabase/client";
+import { Separator } from "../components/ui/separator";
 
 interface OrderDetails {
   order_id: string;

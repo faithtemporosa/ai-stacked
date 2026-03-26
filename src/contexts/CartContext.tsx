@@ -1,9 +1,9 @@
 // @ts-nocheck
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "./AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { errorLogger, getErrorMessage } from "@/utils/errorLogger";
+import { supabase } from "../integrations/supabase/client";
+import { useToast } from "../hooks/use-toast";
+import { errorLogger, getErrorMessage } from "../utils/errorLogger";
 
 export interface CartItem {
   id: string;

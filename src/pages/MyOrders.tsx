@@ -1,18 +1,18 @@
 // @ts-nocheck
 import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { supabase } from "../integrations/supabase/client";
+import { Card } from "../components/ui/card";
+import { Button } from "../components/ui/button";
 import { Package, LogIn } from "lucide-react";
 import { format } from "date-fns";
 import { Link, useNavigate } from "react-router-dom";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import { useAuth } from "@/contexts/AuthContext";
+import Header from "../components/Header";
+import Footer from "../components/Footer";
+import { useAuth } from "../contexts/AuthContext";
 import { toast } from "sonner";
-import { toLaymanDescription } from "@/utils/laymanDescriptions";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { toLaymanDescription } from "../utils/laymanDescriptions";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
 
 const MyOrders = () => {
   const { user } = useAuth();

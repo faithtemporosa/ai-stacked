@@ -1,15 +1,15 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
-import { useAuth } from "@/contexts/AuthContext";
-import { useAdmin } from "@/hooks/use-admin";
-import { useToast } from "@/hooks/use-toast";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Card } from "../components/ui/card";
+import { useAuth } from "../contexts/AuthContext";
+import { useAdmin } from "../hooks/use-admin";
+import { useToast } from "../hooks/use-toast";
 import { z } from "zod";
-import { errorLogger, getErrorMessage } from "@/utils/errorLogger";
+import { errorLogger, getErrorMessage } from "../utils/errorLogger";
 import { Shield, Lock, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 

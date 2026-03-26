@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
-import { useCart } from "@/contexts/CartContext";
+import { Button } from "./ui/button";
+import { Textarea } from "./ui/textarea";
+import { Card } from "./ui/card";
+import { useCart } from "../contexts/CartContext";
 import { toast } from "sonner";
 import { Sparkles } from "lucide-react";
 

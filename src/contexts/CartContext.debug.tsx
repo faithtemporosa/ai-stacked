@@ -29,10 +29,10 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "./AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { errorLogger, getErrorMessage } from "@/utils/errorLogger";
-import { cartDebugger, debugHelpers } from "@/utils/cartDebugger";
+import { supabase } from "../integrations/supabase/client";
+import { useToast } from "../hooks/use-toast";
+import { errorLogger, getErrorMessage } from "../utils/errorLogger";
+import { cartDebugger, debugHelpers } from "../utils/cartDebugger";
 
 export interface CartItem {
   id: string;

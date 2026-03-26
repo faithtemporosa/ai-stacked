@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import { AutomationCard } from "@/components/AutomationCard";
-import { useAuth } from "@/contexts/AuthContext";
-import { useWishlist } from "@/contexts/WishlistContext";
-import { type Automation } from "@/data/automations";
-import { parseAutomationsCatalog } from "@/utils/parseAutomationsCatalog";
+import Header from "../components/Header";
+import Footer from "../components/Footer";
+import { AutomationCard } from "../components/AutomationCard";
+import { useAuth } from "../contexts/AuthContext";
+import { useWishlist } from "../contexts/WishlistContext";
+import { type Automation } from "../data/automations";
+import { parseAutomationsCatalog } from "../utils/parseAutomationsCatalog";
 import { Heart } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { Button } from "../components/ui/button";
 
 export default function Wishlist() {
   const { user } = useAuth();

@@ -1,8 +1,8 @@
 // @ts-nocheck
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { supabase } from "../../integrations/supabase/client";
+import { Card } from "../ui/card";
+import { Badge } from "../ui/badge";
 import {
   Table,
   TableBody,
@@ -10,10 +10,10 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "../ui/table";
 import { format } from "date-fns";
 import { ShoppingCart, User, Mail, Package, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "../ui/button";
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 

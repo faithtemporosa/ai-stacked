@@ -1,8 +1,8 @@
 // @ts-nocheck
 import { createContext, useContext, useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "../integrations/supabase/client";
 import { useAuth } from "./AuthContext";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "../hooks/use-toast";
 
 interface WishlistContextType {
   wishlistIds: Set<string>;

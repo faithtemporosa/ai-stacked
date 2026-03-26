@@ -1,4 +1,4 @@
-import type { Automation, AutomationCategory } from "@/data/automations";
+import type { Automation, AutomationCategory } from "../data/automations";
 
 // CSV data is loaded from the public directory at runtime
 let cachedAutomations: Automation[] | null = null;

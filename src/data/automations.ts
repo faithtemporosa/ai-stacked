@@ -45,8 +45,8 @@ export const categories: AutomationCategory[] = [
 ];
 
 // Load automations from CSV and premium workflows
-import { parseAutomationsCatalog } from "@/utils/parseAutomationsCatalog";
-import { loadPremiumN8NWorkflows } from "@/utils/parseN8NWorkflows";
+import { parseAutomationsCatalog } from "../utils/parseAutomationsCatalog";
+import { loadPremiumN8NWorkflows } from "../utils/parseN8NWorkflows";
 
 // Load both premium workflows and catalog automations
 Promise.all([

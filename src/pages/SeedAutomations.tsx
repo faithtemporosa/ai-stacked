@@ -1,13 +1,13 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Progress } from "../components/ui/progress";
+import { Alert, AlertDescription } from "../components/ui/alert";
 import { CheckCircle, AlertCircle, Database, Download } from "lucide-react";
-import { seedAutomationsDatabase } from "@/utils/seedAutomations";
-import { downloadAutomationsCSV } from "@/utils/exportAutomationsCSV";
-import { parseAutomationsCatalog } from "@/utils/parseAutomationsCatalog";
+import { seedAutomationsDatabase } from "../utils/seedAutomations";
+import { downloadAutomationsCSV } from "../utils/exportAutomationsCSV";
+import { parseAutomationsCatalog } from "../utils/parseAutomationsCatalog";
 
 export default function SeedAutomations() {
   const [isSeeding, setIsSeeding] = useState(false);

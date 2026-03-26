@@ -1,19 +1,19 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
 import { Menu, X, ShoppingCart, Heart, LogIn, LogOut, User, Settings, Shield, Package, ClipboardList, HandCoins } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
-import { useCart } from "@/contexts/CartContext";
-import { useAuth } from "@/contexts/AuthContext";
-import { useWishlist } from "@/contexts/WishlistContext";
-import { useAdmin } from "@/hooks/use-admin";
-import { MiniCartPanel } from "@/components/MiniCartPanel";
-import { NotificationCenter } from "@/components/NotificationCenter";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { supabase } from "@/integrations/supabase/client";
-import robotMascot from "@/assets/robot-mascot.svg";
-import aiLogo from "@/assets/ai-brand-logo.png";
+import { useCart } from "../contexts/CartContext";
+import { useAuth } from "../contexts/AuthContext";
+import { useWishlist } from "../contexts/WishlistContext";
+import { useAdmin } from "../hooks/use-admin";
+import { MiniCartPanel } from "./MiniCartPanel";
+import { NotificationCenter } from "./NotificationCenter";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { supabase } from "../integrations/supabase/client";
+import robotMascot from "../assets/robot-mascot.svg";
+import aiLogo from "../assets/ai-brand-logo.png";
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
