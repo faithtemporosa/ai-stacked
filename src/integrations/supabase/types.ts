@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_activity_logs: {
+        Row: {
+          action_type: string
+          admin_user_id: string
+          created_at: string
+          details: string | null
+          id: string
+          target_user_id: string | null
+        }
+        Insert: {
+          action_type: string
+          admin_user_id: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          target_user_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          admin_user_id?: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          target_user_id?: string | null
+        }
+        Relationships: []
+      }
       analytics_events: {
         Row: {
           created_at: string
@@ -125,6 +152,105 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_submissions: {
+        Row: {
+          automation_count: number | null
+          brand_name: string | null
+          cart_items: string | null
+          created_at: string
+          email: string
+          id: string
+          message: string | null
+          name: string
+          order_total: number | null
+          status: string
+        }
+        Insert: {
+          automation_count?: number | null
+          brand_name?: string | null
+          cart_items?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          message?: string | null
+          name: string
+          order_total?: number | null
+          status?: string
+        }
+        Update: {
+          automation_count?: number | null
+          brand_name?: string | null
+          cart_items?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          message?: string | null
+          name?: string
+          order_total?: number | null
+          status?: string
+        }
+        Relationships: []
+      }
+      customer_credentials: {
+        Row: {
+          created_at: string
+          credential_key: string
+          credential_value: string
+          customer_id: string
+          id: string
+          tool_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          credential_key: string
+          credential_value: string
+          customer_id: string
+          id?: string
+          tool_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          credential_key?: string
+          credential_value?: string
+          customer_id?: string
+          id?: string
+          tool_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      login_activity: {
+        Row: {
+          browser: string | null
+          city: string | null
+          country: string | null
+          id: string
+          login_at: string
+          os: string | null
+          user_id: string
+        }
+        Insert: {
+          browser?: string | null
+          city?: string | null
+          country?: string | null
+          id?: string
+          login_at?: string
+          os?: string | null
+          user_id: string
+        }
+        Update: {
+          browser?: string | null
+          city?: string | null
+          country?: string | null
+          id?: string
+          login_at?: string
+          os?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -151,6 +277,81 @@ export type Database = {
           read?: boolean
           title?: string
           type?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string | null
+          email_digest_enabled: boolean
+          has_seen_welcome: boolean
+          id: string
+          updated_at: string
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          email_digest_enabled?: boolean
+          has_seen_welcome?: boolean
+          id?: string
+          updated_at?: string
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          email_digest_enabled?: boolean
+          has_seen_welcome?: boolean
+          id?: string
+          updated_at?: string
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
