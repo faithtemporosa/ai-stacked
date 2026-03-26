@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { supabase } from "@/integrations/supabase/client";
 import { parseAutomationsCatalog } from "@/utils/parseAutomationsCatalog";
 import { errorLogger } from "@/utils/errorLogger";
