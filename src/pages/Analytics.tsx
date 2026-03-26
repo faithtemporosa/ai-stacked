@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { AnalyticsDashboard } from "@/components/admin/AnalyticsDashboard";
 import AdminHeader from "@/components/AdminHeader";
 

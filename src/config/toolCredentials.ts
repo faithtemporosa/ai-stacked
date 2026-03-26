@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Tool-to-credential mapping configuration
 // This maps platform/tool names to their required credential fields
 

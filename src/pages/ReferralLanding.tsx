@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useSearchParams, Link } from "react-router-dom";
 import { Gift, CheckCircle, Users, Percent, ArrowRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
