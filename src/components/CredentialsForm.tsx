@@ -3,20 +3,20 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { Button } from "./ui/button";
+import { Card } from "./ui/card";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Textarea } from "./ui/textarea";
+import { useToast } from "../hooks/use-toast";
+import { supabase } from "../integrations/supabase/client";
 import { Loader2, Info } from "lucide-react";
 import { 
   extractToolsFromFeatures, 
   getToolCredentialConfig,
   preloadToolConfigs,
   type CredentialField 
-} from "@/config/toolCredentials";
+} from "../config/toolCredentials";
 
 interface PurchasedAutomation {
   id: string;

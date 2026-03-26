@@ -2,7 +2,7 @@
 // Tool-to-credential mapping configuration
 // This maps platform/tool names to their required credential fields
 
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "../integrations/supabase/client";
 
 export interface CredentialField {
   key: string;

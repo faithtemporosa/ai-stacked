@@ -1,5 +1,5 @@
-import { parseAutomationsCatalog } from "@/utils/parseAutomationsCatalog";
-import type { Automation } from "@/data/automations";
+import { parseAutomationsCatalog } from "./parseAutomationsCatalog";
+import type { Automation } from "../data/automations";
 
 /**
  * Converts automations data to CSV format

@@ -1,16 +1,16 @@
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import { Card } from "./ui/card";
 import { TrendingUp, Check, Heart, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
-import type { Automation } from "@/data/automations";
-import { useCart } from "@/contexts/CartContext";
-import { useToast } from "@/hooks/use-toast";
-import { useParticleTrail } from "@/hooks/use-particle-trail";
-import { useHapticFeedback } from "@/hooks/use-haptic-feedback";
-import { useWishlist } from "@/contexts/WishlistContext";
+import type { Automation } from "../data/automations";
+import { useCart } from "../contexts/CartContext";
+import { useToast } from "../hooks/use-toast";
+import { useParticleTrail } from "../hooks/use-particle-trail";
+import { useHapticFeedback } from "../hooks/use-haptic-feedback";
+import { useWishlist } from "../contexts/WishlistContext";
 import { useRef, useEffect } from "react";
-import { toLaymanDescription } from "@/utils/laymanDescriptions";
+import { toLaymanDescription } from "../utils/laymanDescriptions";
 
 interface AutomationCardProps {
   automation: Automation;

@@ -1,4 +1,4 @@
-import type { Automation } from "@/data/automations";
+import type { Automation } from "../data/automations";
 
 interface N8NWorkflowJSON {
   name: string;

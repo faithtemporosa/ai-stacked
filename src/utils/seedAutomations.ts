@@ -1,7 +1,7 @@
 // @ts-nocheck
-import { supabase } from "@/integrations/supabase/client";
-import { parseAutomationsCatalog } from "@/utils/parseAutomationsCatalog";
-import { errorLogger } from "@/utils/errorLogger";
+import { supabase } from "../integrations/supabase/client";
+import { parseAutomationsCatalog } from "./parseAutomationsCatalog";
+import { errorLogger } from "./errorLogger";
 
 /**
  * Seeds the automations table with all parsed automations from CSV

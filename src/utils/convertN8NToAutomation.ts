@@ -1,5 +1,5 @@
-import type { N8NWorkflow } from "@/data/n8n-workflows";
-import type { Automation, AutomationCategory } from "@/data/automations";
+import type { N8NWorkflow } from "../data/n8n-workflows";
+import type { Automation, AutomationCategory } from "../data/automations";
 
 /**
  * Maps deprecated category names to current ones

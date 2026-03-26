@@ -1,26 +1,26 @@
 // @ts-nocheck
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { supabase } from "../../integrations/supabase/client";
+import { Card } from "../ui/card";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Badge } from "../ui/badge";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "../ui/select";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
+} from "../ui/dialog";
 import { toast } from "sonner";
 import { format, isWithinInterval, startOfDay, endOfDay, parseISO, subDays, subMonths, isAfter } from "date-fns";
 import { Pencil, Calendar, CreditCard, Package, Bell, Search, X, Download, CalendarRange, DollarSign, TrendingUp, TrendingDown, ShoppingCart, BarChart3 } from "lucide-react";

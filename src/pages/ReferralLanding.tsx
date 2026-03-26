@@ -1,10 +1,10 @@
 // @ts-nocheck
 import { useSearchParams, Link } from "react-router-dom";
 import { Gift, CheckCircle, Users, Percent, ArrowRight, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
+import { Button } from "../components/ui/button";
+import { Card } from "../components/ui/card";
+import Header from "../components/Header";
+import Footer from "../components/Footer";
 
 export default function ReferralLanding() {
   const [searchParams] = useSearchParams();

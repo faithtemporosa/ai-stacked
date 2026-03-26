@@ -1,13 +1,13 @@
 // @ts-nocheck
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { supabase } from "../../integrations/supabase/client";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
+import { Badge } from "../ui/badge";
 import { Loader2, Shield, ShieldOff } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import type { AdminActivityLog } from "@/types/adminActivity";
-import { errorLogger } from "@/utils/errorLogger";
+import type { AdminActivityLog } from "../../types/adminActivity";
+import { errorLogger } from "../../utils/errorLogger";
 
 interface ActivityLogWithEmail extends AdminActivityLog {
   admin_email: string | null;

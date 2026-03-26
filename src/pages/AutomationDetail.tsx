@@ -1,18 +1,18 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { type Automation } from "@/data/automations";
-import { parseAutomationsCatalog } from "@/utils/parseAutomationsCatalog";
+import Header from "../components/Header";
+import Footer from "../components/Footer";
+import { Button } from "../components/ui/button";
+import { Badge } from "../components/ui/badge";
+import { Card } from "../components/ui/card";
+import { Separator } from "../components/ui/separator";
+import { type Automation } from "../data/automations";
+import { parseAutomationsCatalog } from "../utils/parseAutomationsCatalog";
 import { ArrowLeft, Check, Clock, TrendingUp, Wrench } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { useCart } from "@/contexts/CartContext";
-import ROICalculator from "@/components/ROICalculator";
-import { toLaymanProblem, toLaymanSolution, toLaymanHowItWorks, toLaymanDescription, toLaymanFeature, toLaymanName } from "@/utils/laymanDescriptions";
+import { useToast } from "../hooks/use-toast";
+import { useCart } from "../contexts/CartContext";
+import ROICalculator from "../components/ROICalculator";
+import { toLaymanProblem, toLaymanSolution, toLaymanHowItWorks, toLaymanDescription, toLaymanFeature, toLaymanName } from "../utils/laymanDescriptions";
 export default function AutomationDetail() {
   const {
     id

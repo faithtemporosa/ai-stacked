@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { errorLogger } from "@/utils/errorLogger";
+import { supabase } from "../integrations/supabase/client";
+import { errorLogger } from "../utils/errorLogger";
 
 export const useConnectionStatus = () => {
   const [isOnline, setIsOnline] = useState(true);

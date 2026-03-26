@@ -1,4 +1,4 @@
-import { Card } from "@/components/ui/card";
+import { Card } from "./ui/card";
 import { Sparkles, Megaphone, Users2, Target } from "lucide-react";
 import { Link } from "react-router-dom";
 const services = [{

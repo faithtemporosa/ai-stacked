@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "./ui/button";
+import { useAuth } from "../contexts/AuthContext";
 import { 
   LayoutDashboard, 
   Key, 

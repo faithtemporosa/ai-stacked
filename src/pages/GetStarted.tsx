@@ -1,14 +1,14 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import { FuturisticBackground } from "@/components/FuturisticBackground";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import Header from "../components/Header";
+import Footer from "../components/Footer";
+import { FuturisticBackground } from "../components/FuturisticBackground";
+import { Button } from "../components/ui/button";
+import { Card } from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { Textarea } from "../components/ui/textarea";
+import { useToast } from "../hooks/use-toast";
+import { supabase } from "../integrations/supabase/client";
 import { z } from "zod";
 
 const contactSchema = z.object({

@@ -1,24 +1,24 @@
 // @ts-nocheck
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import { FuturisticBackground } from "@/components/FuturisticBackground";
-import { WelcomeDialog } from "@/components/WelcomeDialog";
-import { CustomAutomationSection } from "@/components/CustomAutomationSection";
-import { AffiliateMarquee } from "@/components/AffiliateMarquee";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import ROICalculator from "@/components/ROICalculator";
-import VoiceAssistant from "@/components/VoiceAssistant";
-import { SocialProofBanner, TestimonialStrip } from "@/components/SocialProofBanner";
+import Header from "../components/Header";
+import Footer from "../components/Footer";
+import { FuturisticBackground } from "../components/FuturisticBackground";
+import { WelcomeDialog } from "../components/WelcomeDialog";
+import { CustomAutomationSection } from "../components/CustomAutomationSection";
+import { AffiliateMarquee } from "../components/AffiliateMarquee";
+import { Button } from "../components/ui/button";
+import { Card } from "../components/ui/card";
+import ROICalculator from "../components/ROICalculator";
+import VoiceAssistant from "../components/VoiceAssistant";
+import { SocialProofBanner, TestimonialStrip } from "../components/SocialProofBanner";
 import { CheckCircle2, Clock, Zap, DollarSign, TrendingUp, Mail, BarChart3, ShoppingBag, FolderKanban, MessageSquare, Video, Volume2, ArrowRight, ShoppingCart, FileText, Share2, ImageIcon, Pencil, Star, Shield, Users } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
-import { AudioRecorder } from "@/utils/audioRecorder";
-import { useAudioPlayer } from "@/hooks/use-audio-player";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { useCart } from "@/contexts/CartContext";
-import bumpsyndicate from "@/assets/bump-syndicate-logo.png";
+import { AudioRecorder } from "../utils/audioRecorder";
+import { useAudioPlayer } from "../hooks/use-audio-player";
+import { supabase } from "../integrations/supabase/client";
+import { useToast } from "../hooks/use-toast";
+import { useCart } from "../contexts/CartContext";
+import bumpsyndicate from "../assets/bump-syndicate-logo.png";
 
 interface ConversationMessage {
   role: 'user' | 'assistant';

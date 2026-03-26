@@ -1,17 +1,17 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import { FuturisticBackground } from "@/components/FuturisticBackground";
-import { CustomAutomationSection } from "@/components/CustomAutomationSection";
-import { AutomationCard } from "@/components/AutomationCard";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Input } from "@/components/ui/input";
-import { categories, type AutomationCategory, type Automation } from "@/data/automations";
-import { supabase } from "@/integrations/supabase/client";
+import Header from "../components/Header";
+import Footer from "../components/Footer";
+import { FuturisticBackground } from "../components/FuturisticBackground";
+import { CustomAutomationSection } from "../components/CustomAutomationSection";
+import { AutomationCard } from "../components/AutomationCard";
+import { Button } from "../components/ui/button";
+import { Checkbox } from "../components/ui/checkbox";
+import { Label } from "../components/ui/label";
+import { Separator } from "../components/ui/separator";
+import { Input } from "../components/ui/input";
+import { categories, type AutomationCategory, type Automation } from "../data/automations";
+import { supabase } from "../integrations/supabase/client";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 
 const ITEMS_PER_PAGE = 100;

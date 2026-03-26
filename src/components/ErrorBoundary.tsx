@@ -1,8 +1,8 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { errorLogger } from '@/utils/errorLogger';
+import { Button } from './ui/button';
+import { Card } from './ui/card';
+import { errorLogger } from '../utils/errorLogger';
 
 interface Props {
   children: ReactNode;

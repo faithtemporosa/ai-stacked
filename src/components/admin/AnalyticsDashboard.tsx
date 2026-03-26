@@ -1,21 +1,21 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
 import { Download, Calendar, Loader2, Database, Send, Users, DollarSign, Home, RefreshCw } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { exportAnalyticsToPDF } from "@/utils/exportAnalyticsPDF";
-import { sendPDFToWebhook } from "@/utils/webhookIntegration";
+import { useToast } from "../../hooks/use-toast";
+import { exportAnalyticsToPDF } from "../../utils/exportAnalyticsPDF";
+import { sendPDFToWebhook } from "../../utils/webhookIntegration";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "../ui/chart";
 import { Area, AreaChart, Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
-import { fetchAnalyticsData, type AnalyticsData } from "@/utils/fetchAnalytics";
-import { fetchDatabaseMetrics, type DatabaseMetrics } from "@/utils/fetchDatabaseMetrics";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchAnalyticsData, type AnalyticsData } from "../../utils/fetchAnalytics";
+import { fetchDatabaseMetrics, type DatabaseMetrics } from "../../utils/fetchDatabaseMetrics";
+import { supabase } from "../../integrations/supabase/client";
 
 export const AnalyticsDashboard = () => {
   const { toast } = useToast();

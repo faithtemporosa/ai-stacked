@@ -1,16 +1,16 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { FuturisticBackground } from "@/components/FuturisticBackground";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { supabase } from "../integrations/supabase/client";
+import { useToast } from "../hooks/use-toast";
+import { FuturisticBackground } from "../components/FuturisticBackground";
+import { Button } from "../components/ui/button";
+import { Card } from "../components/ui/card";
+import { Input } from "../components/ui/input";
 import { Send, Home } from "lucide-react";
-import logo from "@/assets/ai-stacked-logo.png";
+import logo from "../assets/ai-stacked-logo.png";
 import ReactMarkdown from "react-markdown";
-import { CredentialsForm } from "@/components/CredentialsForm";
+import { CredentialsForm } from "../components/CredentialsForm";
 
 interface ConversationMessage {
   role: 'user' | 'assistant';

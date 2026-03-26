@@ -1,6 +1,6 @@
 // @ts-nocheck
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Badge } from "../components/ui/badge";
 import { Code, Lock, Zap, Shield } from "lucide-react";
 
 export default function CredentialsApiDocs() {

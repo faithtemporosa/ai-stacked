@@ -1,15 +1,15 @@
 // @ts-nocheck
 import { useEffect, useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "../contexts/AuthContext";
+import { supabase } from "../integrations/supabase/client";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+} from "./ui/dialog";
+import { Button } from "./ui/button";
 import { Sparkles, Rocket, Zap } from "lucide-react";
 import confetti from "canvas-confetti";
 

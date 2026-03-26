@@ -1,6 +1,6 @@
 // @ts-nocheck
-import { AnalyticsDashboard } from "@/components/admin/AnalyticsDashboard";
-import AdminHeader from "@/components/AdminHeader";
+import { AnalyticsDashboard } from "../components/admin/AnalyticsDashboard";
+import AdminHeader from "../components/AdminHeader";
 
 const Analytics = () => {
   return (

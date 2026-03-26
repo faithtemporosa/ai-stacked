@@ -1,4 +1,4 @@
-import { Card } from "@/components/ui/card";
+import { Card } from "./ui/card";
 import { Users, BarChart3, TrendingUp, Shield } from "lucide-react";
 
 const features = [

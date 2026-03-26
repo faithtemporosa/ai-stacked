@@ -1,7 +1,7 @@
 import { AlertCircle, RefreshCw } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { useConnectionStatus } from "@/hooks/use-connection-status";
+import { Alert, AlertDescription } from "./ui/alert";
+import { Button } from "./ui/button";
+import { useConnectionStatus } from "../hooks/use-connection-status";
 
 export const ConnectionStatusBanner = () => {
   const { isOnline } = useConnectionStatus();

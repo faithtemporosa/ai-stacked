@@ -1,8 +1,8 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "./ui/button";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
-import heroImage from "@/assets/hero-image.jpg";
-import aiLogo from "@/assets/ai-brand-logo.png";
+import heroImage from "../assets/hero-image.jpg";
+import aiLogo from "../assets/ai-brand-logo.png";
 const Hero = () => {
   const scrollToContact = () => {
     const element = document.getElementById("contact");

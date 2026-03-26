@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "../../integrations/supabase/client";
 import { Activity, Clock, Globe } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
