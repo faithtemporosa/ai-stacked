@@ -76,7 +76,7 @@ export function ActivityLogs() {
             admin_user_id: log.admin_user_id,
             action_type: log.action_type,
             target_user_id: log.target_user_id,
-            details: log.details as unknown as import("@/types/adminActivity").AdminActivityDetails,
+            details: log.details as unknown as import("../../types/adminActivity").AdminActivityDetails,
             created_at: log.created_at,
             admin_email: adminProfile.data?.email || "Unknown",
             target_email: targetEmail,
