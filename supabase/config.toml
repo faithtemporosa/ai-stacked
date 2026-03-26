@@ -1,0 +1,28 @@
+project_id = "wjofzwelziocuxdjicnc"
+
+[functions.process-affiliate-payouts]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.create-checkout-session]
+verify_jwt = true
+
+[functions.send-weekly-analytics]
+verify_jwt = false
+
+[functions.voice-agent]
+verify_jwt = false
+
+[functions.credentials-api]
+verify_jwt = false
+
+[functions.decrypt-credential]
+verify_jwt = true
+
+[functions.create-credential]
+verify_jwt = true
+
+[functions.stripe-admin]
+verify_jwt = true
