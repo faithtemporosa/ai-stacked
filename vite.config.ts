@@ -3,7 +3,6 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
-// Force clean dependency optimization - 2026-03-26
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
@@ -15,8 +14,5 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
       "@tanstack/react-query": path.resolve(__dirname, "./src/lib/react-query-shim.tsx"),
     },
-  },
-  optimizeDeps: {
-    exclude: ["@tanstack/react-query"],
   },
 }));
