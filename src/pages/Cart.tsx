@@ -190,7 +190,7 @@ export default function Cart() {
     setIsProcessingCheckout(true);
     
     // Import supabase
-    const { supabase } = await import("@/integrations/supabase/client");
+    const { supabase } = await import("../integrations/supabase/client");
     
     try {
       console.log('Starting checkout with:', {
