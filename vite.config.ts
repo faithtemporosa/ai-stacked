@@ -13,10 +13,10 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@tanstack/react-query": path.resolve(__dirname, "./src/lib/react-query-shim.tsx"),
     },
   },
   optimizeDeps: {
-    force: true,
     exclude: ["@tanstack/react-query"],
   },
 }));
