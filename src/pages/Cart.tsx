@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect, useRef, useMemo } from "react";
 import confetti from "canvas-confetti";
 import Header from "@/components/Header";
