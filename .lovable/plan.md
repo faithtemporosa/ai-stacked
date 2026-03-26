@@ -1,39 +1,62 @@
 
 
-## Root Cause Analysis
+## Problem
 
-The blank page is caused by **Vite's dependency optimization cache being corrupted/stale**. The browser console shows:
+The app shows a blank page because Vite's dependency cache is corrupted. The browser requests pre-bundled deps (like `@tanstack/react-query`, `@supabase/supabase-js`, `sonner`) with stale version hashes, and Vite returns **504 Outdated Optimize Dep** errors. Since these are top-level imports in `main.tsx` and `App.tsx`, the entire app fails to render.
 
+## Simplest Fix
+
+Two changes:
+
+### 1. Force Vite to rebuild dependency cache (`vite.config.ts`)
+
+Add `optimizeDeps.force: true` -- this tells Vite to throw away its cached pre-bundled deps and rebuild them from scratch on the next server start. This is the one-line fix for the stale hash problem.
+
+```typescript
+optimizeDeps: {
+  force: true,
+},
 ```
-504 - Failed to load: /.vite/deps/@tanstack_react-query.js?v=5532ec53
+
+### 2. Make `main.tsx` resilient with dynamic import
+
+Instead of static top-level imports that fail silently on 504 errors, wrap the app bootstrap in a dynamic `import()` with error handling. This way, even if deps are still loading, the user sees a loading state instead of a blank page.
+
+```typescript
+// main.tsx - simplified
+import { createRoot } from "react-dom/client";
+import "./index.css";
+
+const root = createRoot(document.getElementById("root")!);
+
+// Show loading while deps resolve
+root.render(<div style={{display:'flex',justifyContent:'center',alignItems:'center',height:'100vh',fontFamily:'Inter,sans-serif'}}>Loading...</div>);
+
+// Dynamic import so 504 retries don't kill the page
+Promise.all([
+  import("./App"),
+  import("./contexts/AuthContext"),
+  import("./contexts/WishlistContext"),
+  import("./contexts/NotificationContext"),
+]).then(([{ default: App }, { AuthProvider }, { WishlistProvider }, { NotificationProvider }]) => {
+  root.render(
+    <AuthProvider>
+      <WishlistProvider>
+        <NotificationProvider>
+          <App />
+        </NotificationProvider>
+      </WishlistProvider>
+    </AuthProvider>
+  );
+}).catch((err) => {
+  root.render(<div style={{padding:'2rem',fontFamily:'Inter,sans-serif'}}><h1>Failed to load app</h1><p>{String(err)}</p><button onClick={() => window.location.reload()}>Reload</button></div>);
+});
 ```
 
-The version hash `v=5532ec53` is outdated. The running Vite dev server's in-memory module graph references old hashes, but the on-disk cache was rebuilt multiple times during previous debugging attempts. When Vite detects this mismatch, it returns `504 Outdated Optimize Dep`, which kills the app since `@tanstack/react-query` is imported by `App.tsx` at the top level.
-
-The app works intermittently (session replay confirms the user navigated to `/catalog` and `/admin/affiliates` successfully), but on fresh loads it often fails.
-
-## Fix Plan
-
-### Step 1: Reset Vite config to force a clean server restart
-
-Write a minimal change to `vite.config.ts` (add an `optimizeDeps.exclude: []` no-op) to force Vite to detect a config change and perform a full dependency re-optimization on restart. This clears the stale hash.
-
-### Step 2: Remove the `next-themes` dependency usage
-
-`src/components/ui/sonner.tsx` imports `useTheme` from `next-themes`, but no `ThemeProvider` wraps the app. This means `useTheme()` returns `undefined`/defaults silently. Replace it with a hardcoded `"system"` theme value to remove the unnecessary dependency and potential silent error.
-
-### Step 3: Clean up the `frontend/` directory reference
-
-The `frontend/` subdirectory contains a legacy CRA-based app (`craco`, `react-scripts`) that is completely separate from the root Vite app. Its `package.json`, `src/App.js`, etc. are unused but add confusion. No code changes needed here, but noting it for awareness.
-
-## Technical Details
-
-**Files to modify:**
+### Files to modify
 
 | File | Change |
 |------|--------|
-| `vite.config.ts` | Restore standard Lovable config with a fresh timestamp comment to force server restart |
-| `src/components/ui/sonner.tsx` | Remove `next-themes` import; hardcode theme to `"system"` |
-
-**Why previous fixes didn't work:** Each attempt to run `npx vite optimize` or clear `.vite/deps` created new hashes on disk, but the running Vite server process kept its old in-memory hashes. The server needs a config-level change to trigger a full restart with fresh optimization.
+| `vite.config.ts` | Add `force: true` to `optimizeDeps` |
+| `src/main.tsx` | Replace static imports with dynamic import + loading fallback |
 
